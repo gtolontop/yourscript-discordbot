@@ -1,0 +1,246 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id // Discord user ID
+  xp        Int      @default(0)
+  level     Int      @default(0)
+  balance   Int      @default(100) // Starting balance
+  lastDaily DateTime?
+  visibleXp Boolean  @default(true) // Show on leaderboard
+  warns     Warn[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Warn {
+  id         Int      @id @default(autoincrement())
+  reason     String
+  odbyUserId String   // User who received the warn
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  odByModId  String   // Moderator who gave the warn
+  guildId    String
+  timestamp  DateTime @default(now())
+  createdAt  DateTime @default(now())
+}
+
+model Guild {
+  id               String  @id // Discord guild ID
+
+  // Log channels
+  logCategoryId      String? // Category ID for all log channels
+  allLogsChannel     String? // All logs combined
+  modLogsChannel     String? // Ban, kick, mute, warn, unmute
+  msgLogsChannel     String? // Message delete, edit
+  voiceLogsChannel   String? // Voice join, leave, move
+  memberLogsChannel  String? // Member join, leave, role changes
+  serverLogsChannel  String? // Channel/role create/delete, server settings
+  dashboardLogsChannel String? // Dashboard activity logs
+
+  // Ticket system
+  ticketCategoryId      String? // Category for ticket channels
+  ticketTranscriptChannel String? // Channel for transcripts
+  ticketReviewChannel   String? // Channel for staff review (accept/refuse)
+  ticketPublicReviewChannel String? // Public channel for accepted reviews
+  ticketCounter         Int     @default(0) // Ticket number counter
+  ticketSupportRole     String? // Role that can see tickets
+
+  // Ticket modal config
+  ticketModalLabel      String  @default("Sujet (optionnel)")
+  ticketModalPlaceholder String @default("Décris brièvement ton problème...")
+  ticketModalRequired   Boolean @default(false)
+
+  // Other channels
+  levelUpChannel      String? // Channel pour les annonces de level up
+  welcomeChannel      String?
+  welcomeMessage      String?
+  leaveChannel        String?
+  leaveMessage        String?
+  levelUpMessage      String? @default("GG {user}, tu es maintenant niveau **{level}** !")
+  suggestionChannel   String? // Channel for suggestions
+  suggestionApprovedChannel String? // Channel for approved suggestions
+  starboardChannel    String? // Starboard channel
+  starboardThreshold  Int     @default(3) // Minimum stars to appear
+  xpCooldown       Int     @default(60) // Seconds between XP gains
+  xpMin            Int     @default(15)
+  xpMax            Int     @default(25)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  voiceSession     VoiceSession?
+  tickets          Ticket[]
+}
+
+model VoiceSession {
+  id        String   @id // Guild ID
+  channelId String   // Voice channel ID
+  is247     Boolean  @default(false) // Mode 24/7 actif
+  guild     Guild    @relation(fields: [id], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model Ticket {
+  id          Int      @id @default(autoincrement())
+  number      Int      // Ticket number (per guild)
+  channelId   String   @unique // Discord channel ID
+  userId      String   // User who created the ticket
+  guildId     String
+  guild       Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  category    String?  // Ticket category (Support, Achat, Other)
+  subject     String?  // Optional subject/reason
+  status      String   @default("open") // open, closed, review
+  priority    String   @default("normal") // low, normal, high, urgent
+  claimedBy   String?  // Staff who claimed the ticket
+  closedBy    String?  // User who closed the ticket
+  closedAt    DateTime?
+  review      String?  // Review text from user
+  reviewRating Int?    // 1-5 stars
+  lastActivity DateTime @default(now()) // For auto-close
+  createdAt   DateTime @default(now())
+}
+
+model TicketCategory {
+  id          Int      @id @default(autoincrement())
+  guildId     String
+  name        String   // Category name (Support, Achat, etc.)
+  emoji       String?  // Emoji for the category
+  description String?  // Description shown in select menu
+  createdAt   DateTime @default(now())
+
+  @@unique([guildId, name])
+}
+
+model TicketBlacklist {
+  id        Int      @id @default(autoincrement())
+  guildId   String
+  userId    String
+  reason    String?
+  addedBy   String   // Staff who added the blacklist
+  createdAt DateTime @default(now())
+
+  @@unique([guildId, userId])
+}
+
+model Suggestion {
+  id          Int      @id @default(autoincrement())
+  guildId     String
+  userId      String
+  messageId   String   @unique // Message in suggestions channel
+  content     String
+  status      String   @default("pending") // pending, approved, rejected
+  staffId     String?  // Staff who handled it
+  staffReason String?  // Reason for approval/rejection
+  upvotes     Int      @default(0)
+  downvotes   Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+
+model Giveaway {
+  id            Int      @id @default(autoincrement())
+  guildId       String
+  channelId     String
+  messageId     String   @unique
+  hostId        String   // User who created the giveaway
+  prize         String
+  winners       Int      @default(1)
+  requiredRole  String?  // Role required to enter
+  endsAt        DateTime
+  ended         Boolean  @default(false)
+  winnerIds     String   @default("[]") // JSON array of winner IDs
+  participants  String   @default("[]") // JSON array of participant IDs
+  createdAt     DateTime @default(now())
+}
+
+model ReactionRole {
+  id        Int      @id @default(autoincrement())
+  guildId   String
+  channelId String
+  messageId String
+  roleId    String
+  emoji     String   // Emoji or custom emoji ID
+  label     String?  // Button label if using buttons
+  style     String   @default("primary") // Button style
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, roleId])
+}
+
+model AutoRole {
+  id        Int      @id @default(autoincrement())
+  guildId   String
+  roleId    String
+  type      String   @default("join") // join, bot
+  delay     Int      @default(0) // Delay in seconds
+  createdAt DateTime @default(now())
+
+  @@unique([guildId, roleId])
+}
+
+model RoleAllJob {
+  id            Int      @id @default(autoincrement())
+  guildId       String
+  roleId        String   // Role to add/remove
+  action        String   // "add" or "remove"
+  includeBots   Boolean  @default(false)
+  memberIds     String   // JSON array of member IDs to process
+  processedIds  String   @default("[]") // JSON array of processed member IDs
+  success       Int      @default(0)
+  failed        Int      @default(0)
+  status        String   @default("running") // running, completed, paused
+  channelId     String?  // Channel to send updates
+  messageId     String?  // Message to edit for progress
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Transcript {
+  id           String   @id @default(uuid()) // UUID for URL
+  ticketId     Int
+  ticketNumber Int
+  guildId      String
+  guildName    String
+  userId       String
+  userName     String
+  closedBy     String
+  closedByName String
+  subject      String?
+  category     String?
+  messageCount Int
+  html         String   // HTML content
+  createdAt    DateTime @default(now())
+}
+
+model Session {
+  id        String   @id
+  sid       String   @unique
+  data      String
+  expiresAt DateTime
+}
+
+model EmbedTemplate {
+  id          Int      @id @default(autoincrement())
+  guildId     String
+  name        String
+  embed       String   // JSON stringified embed data
+  createdAt   DateTime @default(now())
+
+  @@unique([guildId, name])
+}
+
+model DashboardLog {
+  id          Int      @id @default(autoincrement())
+  guildId     String
+  userId      String   // User who performed the action
+  action      String   // Config Updated, Embed Sent, etc.
+  details     String   // Details of the action
+  timestamp   DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([guildId, timestamp])
+}
