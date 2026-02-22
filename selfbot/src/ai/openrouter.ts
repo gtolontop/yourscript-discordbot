@@ -3,8 +3,8 @@ import { BudgetMonitor } from "./budget.js";
 import { logger } from "../utils/logger.js";
 
 const MODELS = {
-  READER: "google/gemini-2.5-flash-8b",
-  EXECUTOR: "deepseek/deepseek-chat", // V3 is now chat on openrouter officially
+  READER: "google/gemini-2.5-flash",
+  EXECUTOR: "deepseek/deepseek-v3.2",
   EMBEDDING: "openai/text-embedding-3-small",
 } as const;
 

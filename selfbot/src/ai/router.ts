@@ -21,31 +21,31 @@ interface ModelConfig {
 
 const MODEL_TABLE: Record<TaskType, ModelConfig> = {
   classification: {
-    model: "google/gemini-2.5-flash-8b",
+    model: "google/gemini-2.5-flash",
     fallback: "openai/gpt-4o-mini",
     rpm: 500,
     rpd: 50000,
   },
   sentiment: {
-    model: "google/gemini-2.5-flash-8b",
+    model: "google/gemini-2.5-flash",
     fallback: "openai/gpt-4o-mini",
     rpm: 500,
     rpd: 50000,
   },
   quick_response: {
     model: "google/gemini-2.5-flash",
-    fallback: "deepseek/deepseek-chat",
+    fallback: "deepseek/deepseek-v3.2",
     rpm: 200,
     rpd: 10000,
   },
   conversation: {
-    model: "deepseek/deepseek-chat",
+    model: "deepseek/deepseek-v3.2",
     fallback: "meta-llama/llama-3.3-70b-instruct",
     rpm: 200,
     rpd: 10000,
   },
   complex_analysis: {
-    model: "deepseek/deepseek-chat",
+    model: "deepseek/deepseek-v3.2",
     fallback: "x-ai/grok-4.1-fast",
     rpm: 200,
     rpd: 10000,
@@ -68,13 +68,13 @@ const MODEL_TABLE: Record<TaskType, ModelConfig> = {
     rpd: 50000,
   },
   dm_conversation: {
-    model: "deepseek/deepseek-chat",
+    model: "deepseek/deepseek-v3.2",
     fallback: "meta-llama/llama-3.3-70b-instruct",
     rpm: 200,
     rpd: 10000,
   },
   memory_extraction: {
-    model: "google/gemini-2.5-flash-8b",
+    model: "google/gemini-2.5-flash",
     fallback: "openai/gpt-4o-mini",
     rpm: 500,
     rpd: 50000,
@@ -113,7 +113,7 @@ export class ModelRouter {
 
   getModel(taskType: TaskType): string {
     const config = MODEL_TABLE[taskType];
-    if (!config) return "deepseek/deepseek-chat";
+    if (!config) return "deepseek/deepseek-v3.2";
 
     // Check if primary model is available (not hard-banned and within soft limits)
     if (!this.isHardBanned(config.model) && this.isAvailable(config.model, config.rpm, config.rpd)) {
