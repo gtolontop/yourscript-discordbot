@@ -9,7 +9,9 @@ import { PrismaClient } from "@prisma/client";
 import { Player } from "discord-player";
 import { SpotifyExtractor, SoundCloudExtractor, AppleMusicExtractor, AttachmentExtractor } from "@discord-player/extractor";
 import { YoutubeiExtractor } from "discord-player-youtubei";
+import type { Namespace } from "socket.io";
 import type { Command, ButtonComponent, ModalComponent, SelectMenuComponent } from "../types/index.js";
+import { logger } from "../utils/index.js";
 
 export class Bot extends Client {
   public commands: Collection<string, Command> = new Collection();
@@ -19,6 +21,7 @@ export class Bot extends Client {
   public cooldowns: Collection<string, Collection<string, number>> = new Collection();
   public db: PrismaClient;
   public player: Player;
+  public aiNamespace: Namespace | null = null;
 
   constructor(options?: Partial<ClientOptions>) {
     super({
@@ -29,6 +32,8 @@ export class Bot extends Client {
         GatewayIntentBits.GuildVoiceStates,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildModeration,
+        GatewayIntentBits.GuildEmojisAndStickers,
+        GatewayIntentBits.GuildInvites,
       ],
       partials: [Partials.Channel, Partials.GuildMember, Partials.Message],
       ...options,
@@ -41,10 +46,11 @@ export class Bot extends Client {
   }
 
   async start(token: string): Promise<void> {
+    logger.db("Connecting to database...");
     await this.db.$connect();
-    console.log("✓ Database connected");
+    logger.db("Database connected");
 
-    // Load extractors
+    logger.info("Loading music extractors...");
     await this.player.extractors.loadMulti([
       SpotifyExtractor,
       SoundCloudExtractor,
@@ -52,20 +58,23 @@ export class Bot extends Client {
       AttachmentExtractor,
     ]);
 
-    // Register Youtubei for YouTube (more stable than default)
     await this.player.extractors.register(YoutubeiExtractor, {
       streamOptions: {
         useClient: "ANDROID",
       },
     });
 
-    console.log("✓ Music extractors loaded");
+    logger.info("Music extractors loaded (Spotify, SoundCloud, Apple Music, YouTube, Attachment)");
 
+    logger.info("Connecting to Discord...");
     await this.login(token);
   }
 
   async stop(): Promise<void> {
+    logger.info("Disconnecting database...");
     await this.db.$disconnect();
+    logger.info("Destroying Discord client...");
     this.destroy();
+    logger.info("Bot stopped gracefully");
   }
 }
