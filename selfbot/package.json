@@ -1,0 +1,26 @@
+{
+  "name": "ai-selfbot",
+  "version": "1.0.0",
+  "description": "AI Selfbot for ticket support via Discord user account",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "discord.js-selfbot-v13": "^3.4.2",
+    "socket.io-client": "^4.8.3",
+    "dotenv": "^17.2.3"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "@types/node": "^25.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
