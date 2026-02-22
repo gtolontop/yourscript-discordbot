@@ -44,6 +44,18 @@ export default {
             .setName("role")
             .setDescription("Required role to participate")
         )
+        .addIntegerOption((opt) =>
+          opt
+            .setName("required_level")
+            .setDescription("Minimum level to enter")
+            .setMinValue(1)
+        )
+        .addChannelOption((opt) =>
+          opt
+            .setName("required_voice")
+            .setDescription("Required voice channel to enter")
+            .addChannelTypes(2) // Voice channel type
+        )
         .addChannelOption((opt) =>
           opt
             .setName("channel")
@@ -92,6 +104,8 @@ export default {
       const durationStr = interaction.options.getString("duree", true);
       const winners = interaction.options.getInteger("gagnants") ?? 1;
       const requiredRole = interaction.options.getRole("role");
+      const requiredLevel = interaction.options.getInteger("required_level");
+      const requiredVoice = interaction.options.getChannel("required_voice");
       const channel = (interaction.options.getChannel("channel") ?? interaction.channel) as TextChannel;
 
       // Parse duration
@@ -111,6 +125,8 @@ export default {
           `**Prize:** ${prize}`,
           "",
           requiredRole ? `**Required role:** ${requiredRole}` : null,
+          requiredLevel ? `**Required Level:** ${requiredLevel}` : null,
+          requiredVoice ? `**Required Voice:** ${requiredVoice}` : null,
           `**Winners:** ${winners}`,
           `**Ends:** <t:${Math.floor(endsAt.getTime() / 1000)}:R>`,
           "",
@@ -143,6 +159,8 @@ export default {
           prize,
           winners,
           requiredRole: requiredRole?.id ?? null,
+          requiredLevel,
+          requiredVoice: requiredVoice?.id ?? null,
           endsAt,
         },
       });
