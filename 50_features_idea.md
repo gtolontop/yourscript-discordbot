@@ -15,7 +15,7 @@ Here is a list of 50 features (ranging from simple additions to complex systems)
 8. **On-Demand Voice Note Parsing**: If a user sends a voice note, the bot replies with a blank "transcribing audio..." message. It uses an ultra-cheap model to transcribe it to text. The AI *only* acts once the text is ready.
 9. **Smart Prompt Builder via Command**: A command to feed the AI new facts (e.g., rules, product info). The bot passes the input to a cheap model to "clean and format" it properly before saving it to the permanent system prompt, ensuring the AI is incredibly smart and adapted to the specific store without manual rewriting.
 10. **Emotion-aware Responses**: The AI should detect if a user is angry or frustrated over multiple messages and automatically adjust its tone to be more empathetic, while silently pinging a manager.
-11. **Multi-turn Contextual Memory**: The AI should explicitly remember user preferences across different tickets (e.g., "The user mentioned they use ESX in their last ticket").
+11. **Smart Contextual Memory Filtering**: Enhance the memory system so the AI only stores highly relevant, "smart" data (e.g., user age, preferred framework like ESX/QBCore, or their Discord server member count of 5000) and completely filters out useless conversational filler.
 12. **Auto-Translation for Staff**: If a user speaks Spanish and the staff speaks English, the bot should seamlessly translate the conversation back and forth in real-time within the ticket.
 13. **Auto-Role Assignment Context**: If the AI detects a user confirming they own "Inventory" or "ClothesShop," it automatically grants them the base "Client" role logcally, skipping manual verification if it's safe.
 
