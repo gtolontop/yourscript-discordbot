@@ -13,74 +13,74 @@ import { successMessage, errorMessage, Colors } from "../../utils/index.js";
 export default {
   data: new SlashCommandBuilder()
     .setName("giveaway")
-    .setDescription("Système de giveaways")
+    .setDescription("Giveaway system")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand((sub) =>
       sub
         .setName("start")
-        .setDescription("Lancer un giveaway")
+        .setDescription("Start a giveaway")
         .addStringOption((opt) =>
           opt
             .setName("prix")
-            .setDescription("Le prix à gagner")
+            .setDescription("The prize to win")
             .setRequired(true)
             .setMaxLength(200)
         )
         .addStringOption((opt) =>
           opt
             .setName("duree")
-            .setDescription("Durée (ex: 1h, 2d, 30m)")
+            .setDescription("Duration (e.g. 1h, 2d, 30m)")
             .setRequired(true)
         )
         .addIntegerOption((opt) =>
           opt
             .setName("gagnants")
-            .setDescription("Nombre de gagnants")
+            .setDescription("Number of winners")
             .setMinValue(1)
             .setMaxValue(20)
         )
         .addRoleOption((opt) =>
           opt
             .setName("role")
-            .setDescription("Rôle requis pour participer")
+            .setDescription("Required role to participate")
         )
         .addChannelOption((opt) =>
           opt
             .setName("channel")
-            .setDescription("Channel pour le giveaway (défaut: actuel)")
+            .setDescription("Channel for the giveaway (default: current)")
         )
     )
     .addSubcommand((sub) =>
       sub
         .setName("end")
-        .setDescription("Terminer un giveaway manuellement")
+        .setDescription("End a giveaway manually")
         .addStringOption((opt) =>
           opt
             .setName("message_id")
-            .setDescription("ID du message du giveaway")
+            .setDescription("Giveaway message ID")
             .setRequired(true)
         )
     )
     .addSubcommand((sub) =>
       sub
         .setName("reroll")
-        .setDescription("Tirer de nouveaux gagnants")
+        .setDescription("Reroll new winners")
         .addStringOption((opt) =>
           opt
             .setName("message_id")
-            .setDescription("ID du message du giveaway")
+            .setDescription("Giveaway message ID")
             .setRequired(true)
         )
         .addIntegerOption((opt) =>
           opt
             .setName("nombre")
-            .setDescription("Nombre de gagnants à retirer")
+            .setDescription("Number of winners to reroll")
             .setMinValue(1)
             .setMaxValue(20)
         )
     )
     .addSubcommand((sub) =>
-      sub.setName("list").setDescription("Voir les giveaways actifs")
+      sub.setName("list").setDescription("View active giveaways")
     ),
 
   async execute(interaction, client) {
@@ -98,7 +98,7 @@ export default {
       const duration = parseDuration(durationStr);
       if (!duration || duration < 60000) { // Min 1 minute
         return interaction.reply({
-          ...errorMessage({ description: "Durée invalide. Utilise le format: 1h, 2d, 30m, etc." }),
+          ...errorMessage({ description: "Invalid duration. Use the format: 1h, 2d, 30m, etc." }),
           ephemeral: true,
         });
       }
@@ -108,22 +108,22 @@ export default {
       const embed = new EmbedBuilder()
         .setTitle("🎉 Giveaway")
         .setDescription([
-          `**Prix:** ${prize}`,
+          `**Prize:** ${prize}`,
           "",
-          requiredRole ? `**Rôle requis:** ${requiredRole}` : null,
-          `**Gagnants:** ${winners}`,
-          `**Fin:** <t:${Math.floor(endsAt.getTime() / 1000)}:R>`,
+          requiredRole ? `**Required role:** ${requiredRole}` : null,
+          `**Winners:** ${winners}`,
+          `**Ends:** <t:${Math.floor(endsAt.getTime() / 1000)}:R>`,
           "",
-          "Clique sur le bouton pour participer !",
+          "Click the button to participate!",
         ].filter(Boolean).join("\n"))
         .setColor(Colors.Primary)
-        .setFooter({ text: `Par ${interaction.user.tag} • 0 participants` })
+        .setFooter({ text: `By ${interaction.user.tag} • 0 participants` })
         .setTimestamp(endsAt);
 
       const button = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
           .setCustomId("giveaway_enter")
-          .setLabel("Participer")
+          .setLabel("Enter")
           .setStyle(ButtonStyle.Success)
           .setEmoji("🎉")
       );
@@ -151,7 +151,7 @@ export default {
       scheduleGiveawayEnd(client, message.id, duration);
 
       return interaction.reply({
-        ...successMessage({ description: `Giveaway lancé dans <#${channel.id}> !` }),
+        ...successMessage({ description: `Giveaway started in <#${channel.id}>!` }),
         ephemeral: true,
       });
     }
@@ -165,14 +165,14 @@ export default {
 
       if (!giveaway) {
         return interaction.reply({
-          ...errorMessage({ description: "Giveaway introuvable." }),
+          ...errorMessage({ description: "Giveaway not found." }),
           ephemeral: true,
         });
       }
 
       if (giveaway.ended) {
         return interaction.reply({
-          ...errorMessage({ description: "Ce giveaway est déjà terminé." }),
+          ...errorMessage({ description: "This giveaway has already ended." }),
           ephemeral: true,
         });
       }
@@ -180,7 +180,7 @@ export default {
       await endGiveaway(client, messageId);
 
       return interaction.reply(
-        successMessage({ description: "Giveaway terminé !" })
+        successMessage({ description: "Giveaway ended!" })
       );
     }
 
@@ -194,14 +194,14 @@ export default {
 
       if (!giveaway) {
         return interaction.reply({
-          ...errorMessage({ description: "Giveaway introuvable." }),
+          ...errorMessage({ description: "Giveaway not found." }),
           ephemeral: true,
         });
       }
 
       if (!giveaway.ended) {
         return interaction.reply({
-          ...errorMessage({ description: "Ce giveaway n'est pas encore terminé." }),
+          ...errorMessage({ description: "This giveaway has not ended yet." }),
           ephemeral: true,
         });
       }
@@ -209,7 +209,7 @@ export default {
       const participants = JSON.parse(giveaway.participants) as string[];
       if (participants.length === 0) {
         return interaction.reply({
-          ...errorMessage({ description: "Aucun participant dans ce giveaway." }),
+          ...errorMessage({ description: "No participants in this giveaway." }),
           ephemeral: true,
         });
       }
@@ -220,11 +220,11 @@ export default {
       const channel = interaction.guild?.channels.cache.get(giveaway.channelId) as TextChannel;
       if (channel) {
         await channel.send({
-          content: `🎉 Nouveaux gagnants: ${newWinners.map((id) => `<@${id}>`).join(", ")}`,
+          content: `🎉 New winners: ${newWinners.map((id) => `<@${id}>`).join(", ")}`,
           embeds: [
             new EmbedBuilder()
               .setTitle("🎊 Reroll")
-              .setDescription(`**Prix:** ${giveaway.prize}`)
+              .setDescription(`**Prize:** ${giveaway.prize}`)
               .setColor(Colors.Success)
               .setTimestamp(),
           ],
@@ -232,7 +232,7 @@ export default {
       }
 
       return interaction.reply(
-        successMessage({ description: `${newWinners.length} nouveau(x) gagnant(s) tirés !` })
+        successMessage({ description: `${newWinners.length} new winner(s) rerolled!` })
       );
     }
 
@@ -244,17 +244,17 @@ export default {
 
       if (giveaways.length === 0) {
         return interaction.reply({
-          ...errorMessage({ description: "Aucun giveaway actif." }),
+          ...errorMessage({ description: "No active giveaways." }),
           ephemeral: true,
         });
       }
 
       const embed = new EmbedBuilder()
-        .setTitle("🎉 Giveaways actifs")
+        .setTitle("🎉 Active Giveaways")
         .setDescription(
           giveaways.map((g, i) => {
             const participants = JSON.parse(g.participants).length;
-            return `**${i + 1}.** ${g.prize}\n   └ Fin: <t:${Math.floor(g.endsAt.getTime() / 1000)}:R> | ${participants} participant(s) | [Message](https://discord.com/channels/${guildId}/${g.channelId}/${g.messageId})`;
+            return `**${i + 1}.** ${g.prize}\n   └ Ends: <t:${Math.floor(g.endsAt.getTime() / 1000)}:R> | ${participants} participant(s) | [Message](https://discord.com/channels/${guildId}/${g.channelId}/${g.messageId})`;
           }).join("\n\n")
         )
         .setColor(Colors.Primary)
@@ -271,8 +271,8 @@ function parseDuration(str: string): number | null {
   const match = str.match(regex);
   if (!match) return null;
 
-  const value = parseInt(match[1]);
-  const unit = match[2].toLowerCase();
+  const value = parseInt(match[1]!);
+  const unit = match[2]!.toLowerCase();
 
   const multipliers: Record<string, number> = {
     s: 1000,
@@ -282,7 +282,7 @@ function parseDuration(str: string): number | null {
     w: 7 * 24 * 60 * 60 * 1000,
   };
 
-  return value * multipliers[unit];
+  return value * multipliers[unit]!;
 }
 
 function pickWinners(participants: string[], count: number): string[] {
@@ -315,28 +315,28 @@ export async function endGiveaway(client: any, messageId: string): Promise<void>
   if (!channel) return;
 
   const message = await channel.messages.fetch(messageId).catch(() => null);
-  if (!message) return;
+  if (!message || !message.embeds[0]) return;
 
   const embed = EmbedBuilder.from(message.embeds[0]);
   embed.setColor(Colors.Success);
-  embed.setTitle("🎉 Giveaway terminé");
+  embed.setTitle("🎉 Giveaway Ended");
 
   if (winnerIds.length > 0) {
     embed.setDescription([
-      `**Prix:** ${giveaway.prize}`,
+      `**Prize:** ${giveaway.prize}`,
       "",
-      `**Gagnants:** ${winnerIds.map((id: string) => `<@${id}>`).join(", ")}`,
+      `**Winners:** ${winnerIds.map((id: string) => `<@${id}>`).join(", ")}`,
     ].join("\n"));
 
     await channel.send({
-      content: `🎊 Félicitations ${winnerIds.map((id: string) => `<@${id}>`).join(", ")} !`,
+      content: `🎊 Congratulations ${winnerIds.map((id: string) => `<@${id}>`).join(", ")}!`,
       reply: { messageReference: messageId },
     });
   } else {
     embed.setDescription([
-      `**Prix:** ${giveaway.prize}`,
+      `**Prize:** ${giveaway.prize}`,
       "",
-      "**Aucun participant**",
+      "**No participants**",
     ].join("\n"));
   }
 
@@ -348,7 +348,7 @@ export async function endGiveaway(client: any, messageId: string): Promise<void>
       new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
           .setCustomId("giveaway_ended")
-          .setLabel("Terminé")
+          .setLabel("Ended")
           .setStyle(ButtonStyle.Secondary)
           .setDisabled(true)
       ),
