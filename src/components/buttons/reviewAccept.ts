@@ -45,11 +45,24 @@ export default {
         const user = await client.users.fetch(ticket.userId).catch(() => null);
         const stars = "⭐".repeat(ticket.reviewRating) + "☆".repeat(5 - ticket.reviewRating);
 
+        const aiSummary = await client.db.ticketSummary.findUnique({
+          where: { ticketId: ticket.id },
+        }).catch(() => null);
+
+        let miniContext = "";
+        if (aiSummary && aiSummary.summary) {
+          const firstSentence = aiSummary.summary.split('.')[0] || "";
+          miniContext = firstSentence.substring(0, 100) + (firstSentence.length > 100 ? "..." : "");
+        } else if (ticket.subject) {
+          miniContext = ticket.subject.substring(0, 100);
+        }
+
         const reviewEmbed = new EmbedBuilder()
           .setTitle("💬 New Review")
           .setDescription([
-            `**From:** ${user?.tag ?? "Anonymous"}`,
+            `**From:** <@${user?.id ?? ticket.userId}>`,
             `**Rating:** ${stars}`,
+            ...(miniContext ? [`**Context:** ${miniContext}`] : []),
             "",
             `> ${ticket.review}`,
           ].join("\n"))
