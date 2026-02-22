@@ -30,7 +30,13 @@ export class TicketService {
   /**
    * Create a new ticket
    */
-  async createTicket(guild: Guild, user: User, subject?: string, category?: string): Promise<TextChannel | null> {
+  async createTicket(
+    guild: Guild, 
+    user: User, 
+    subject?: string, 
+    category?: string, 
+    extraData?: { username?: string; serverIp?: string; description?: string }
+  ): Promise<TextChannel | null> {
     const config = await this.getConfig(guild.id);
     if (!config?.ticketCategoryId) return null;
 
@@ -103,9 +109,11 @@ export class TicketService {
         "",
         category ? `**Category:** ${category}` : null,
         subject ? `**Subject:** ${subject}` : null,
+        extraData?.username ? `**Username:** \`${extraData.username}\`` : null,
+        extraData?.serverIp ? `**Server IP:** \`${extraData.serverIp}\`` : null,
         `**Priority:** 🟡 Normal`,
         "",
-        "A staff member will respond soon.",
+        "A staff member will respond soon. In the meantime, the AI might ask you a few questions or help you.",
       ].filter(Boolean).join("\n"))
       .setColor(Colors.Primary)
       .setFooter({ text: "Staff: Use the buttons below or /ticket" })
@@ -135,6 +143,16 @@ export class TicketService {
       embeds: [welcomeEmbed],
       components: [ticketButtons],
     });
+
+    // Send the user's description as a separate message if provided
+    if (extraData?.description) {
+      const descEmbed = new EmbedBuilder()
+        .setAuthor({ name: user.tag, iconURL: user.displayAvatarURL() })
+        .setDescription(extraData.description)
+        .setColor(Colors.Secondary)
+        .setTimestamp();
+      await channel.send({ embeds: [descEmbed] });
+    }
 
     // Emit ticket:new to AI namespace
     if (this.client.aiNamespace) {
