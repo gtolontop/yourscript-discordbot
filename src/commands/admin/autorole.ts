@@ -5,35 +5,35 @@ import { successMessage, errorMessage, Colors } from "../../utils/index.js";
 export default {
   data: new SlashCommandBuilder()
     .setName("autorole")
-    .setDescription("Système d'auto-role à l'arrivée")
+    .setDescription("Auto-role system on member join")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
     .addSubcommand((sub) =>
       sub
         .setName("add")
-        .setDescription("Ajouter un rôle automatique")
+        .setDescription("Add an auto role")
         .addRoleOption((opt) =>
           opt
             .setName("role")
-            .setDescription("Le rôle à donner automatiquement")
+            .setDescription("The role to assign automatically")
             .setRequired(true)
         )
     )
     .addSubcommand((sub) =>
       sub
         .setName("remove")
-        .setDescription("Retirer un rôle automatique")
+        .setDescription("Remove an auto role")
         .addRoleOption((opt) =>
           opt
             .setName("role")
-            .setDescription("Le rôle à retirer de la liste")
+            .setDescription("The role to remove from the list")
             .setRequired(true)
         )
     )
     .addSubcommand((sub) =>
-      sub.setName("list").setDescription("Voir les rôles automatiques")
+      sub.setName("list").setDescription("View auto roles")
     )
     .addSubcommand((sub) =>
-      sub.setName("clear").setDescription("Supprimer tous les rôles automatiques")
+      sub.setName("clear").setDescription("Delete all auto roles")
     ),
 
   async execute(interaction, client) {
@@ -47,7 +47,7 @@ export default {
       const botMember = interaction.guild?.members.me;
       if (!botMember || botMember.roles.highest.position <= role.position) {
         return interaction.reply({
-          ...errorMessage({ description: "Je ne peux pas gérer ce rôle (position trop haute)." }),
+          ...errorMessage({ description: "I cannot manage this role (position too high)." }),
           ephemeral: true,
         });
       }
@@ -59,7 +59,7 @@ export default {
 
       if (existing) {
         return interaction.reply({
-          ...errorMessage({ description: "Ce rôle est déjà dans la liste." }),
+          ...errorMessage({ description: "This role is already in the list." }),
           ephemeral: true,
         });
       }
@@ -70,7 +70,7 @@ export default {
 
       return interaction.reply(
         successMessage({
-          description: `${role.toString()} sera donné automatiquement aux nouveaux membres.`,
+          description: `${role.toString()} will be automatically assigned to new members.`,
         })
       );
     }
@@ -84,7 +84,7 @@ export default {
 
       if (!autoRole) {
         return interaction.reply({
-          ...errorMessage({ description: "Ce rôle n'est pas dans la liste." }),
+          ...errorMessage({ description: "This role is not in the list." }),
           ephemeral: true,
         });
       }
@@ -95,7 +95,7 @@ export default {
 
       return interaction.reply(
         successMessage({
-          description: `${role.toString()} retiré de la liste des auto-roles.`,
+          description: `${role.toString()} removed from the auto-roles list.`,
         })
       );
     }
@@ -107,7 +107,7 @@ export default {
 
       if (autoRoles.length === 0) {
         return interaction.reply({
-          ...errorMessage({ description: "Aucun auto-role configuré." }),
+          ...errorMessage({ description: "No auto roles configured." }),
           ephemeral: true,
         });
       }
@@ -118,7 +118,7 @@ export default {
           autoRoles.map((ar, i) => `**${i + 1}.** <@&${ar.roleId}>`).join("\n")
         )
         .setColor(Colors.Primary)
-        .setFooter({ text: `${autoRoles.length} rôle(s)` });
+        .setFooter({ text: `${autoRoles.length} role(s)` });
 
       return interaction.reply({ embeds: [embed] });
     }
@@ -130,7 +130,7 @@ export default {
 
       return interaction.reply(
         successMessage({
-          description: `${deleted.count} auto-role(s) supprimé(s).`,
+          description: `${deleted.count} auto-role(s) deleted.`,
         })
       );
     }
