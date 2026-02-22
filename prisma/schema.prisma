@@ -90,6 +90,13 @@ model Guild {
   aiTodoChannel   String?
   aiDmLogChannel  String? // Channel for DM log threads
 
+  // Tebex Integration
+  tebexSecret     String? // Webhook secret from Tebex
+  tebexRoleReward String? // Role ID given on purchase
+  tebexChannel    String? // Channel for purchase logs/welcomes
+  tebexWelcomeMsg String? // Custom Tebex welcome message
+
+
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   voiceSession     VoiceSession?
@@ -459,4 +466,21 @@ model AIReminder {
   createdAt    DateTime  @default(now())
   @@index([triggerAt, fired])
   @@index([userId])
+}
+
+model TebexPayment {
+  id            String   @id // Tebex transaction ID (e.g., tbx-12345)
+  guildId       String
+  discordUserId String?
+  discordUserTag String?
+  amount        Float
+  currency      String
+  packages      String   @default("[]") // JSON array of package IDs/Names
+  status        String   // Complete, Refunded, Chargeback
+  email         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([discordUserId])
+  @@index([guildId])
 }

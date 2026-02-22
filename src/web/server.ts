@@ -1647,6 +1647,94 @@ export function startWebServer(client: Bot, port: number = 3000): { app: ReturnT
     }
   });
 
+  // ===== TEBEX WEBHOOK =====
+  app.post("/webhooks/tebex/:guildId", async (req, res) => {
+    try {
+      const guildId = req.params['guildId']!;
+      const config = await client.db.guild.findUnique({ where: { id: guildId } });
+      if (!config) return res.status(404).send("Guild not configured");
+
+      const body = req.body;
+      
+      // We accept validation webhook
+      if (body.type === "validation.webhook") {
+         return res.status(200).json({ id: body.id });
+      }
+
+      if (body.type === "payment.completed") {
+        const payment = body.subject;
+        
+        let discordUserId = null;
+        let discordUserTag = null;
+        
+        // Try looking up Discord ID in various places Tebex might put it
+        discordUserId = payment.customer?.discord_id || null;
+        if (!discordUserId && payment.custom) {
+           discordUserId = payment.custom.discord_id || null;
+        }
+
+        const packages = payment.products?.map((p: any) => p.name) || [];
+
+        // Save to DB
+        await client.db.tebexPayment.upsert({
+          where: { id: payment.transaction_id },
+          create: {
+            id: payment.transaction_id,
+            guildId,
+            discordUserId,
+            discordUserTag,
+            amount: parseFloat(payment.price || "0"),
+            currency: payment.currency?.iso_4217 || "EUR",
+            packages: JSON.stringify(packages),
+            status: "Complete",
+            email: payment.customer?.email,
+          },
+          update: {
+            status: "Complete"
+          }
+        });
+
+        // Trigger Discord actions
+        const guild = client.guilds.cache.get(guildId);
+        if (guild) {
+          // Give Role
+          if (config.tebexRoleReward && discordUserId) {
+            const member = await guild.members.fetch(discordUserId).catch(() => null);
+            if (member) {
+              await member.roles.add(config.tebexRoleReward).catch(() => {});
+            }
+          }
+
+          // Welcome Message
+          if (config.tebexChannel) {
+            const channel = guild.channels.cache.get(config.tebexChannel);
+            if (channel?.isTextBased()) {
+              const ping = discordUserId ? `<@${discordUserId}>` : (payment.customer?.username ?? "someone");
+              const defaultMsg = `🎉 **New Purchase!**\nThank you ${ping} for purchasing **${packages.join(", ")}**!`;
+              const msg = config.tebexWelcomeMsg 
+                 ? config.tebexWelcomeMsg.replace("{user}", ping).replace("{packages}", packages.join(", ")) 
+                 : defaultMsg;
+              
+              const { EmbedBuilder } = await import("discord.js");
+              const embed = new EmbedBuilder()
+                .setColor(0x00FF00)
+                .setDescription(msg)
+                .setFooter({ text: `Order ID: ${payment.transaction_id}` })
+                .setTimestamp();
+
+              await (channel as any).send({ embeds: [embed] }).catch(() => {});
+            }
+          }
+        }
+      }
+
+      res.status(200).send("OK");
+    } catch (err: any) {
+      logger.error("Tebex webhook error:", err);
+      res.status(500).send("Error");
+    }
+  });
+
   // ===== TRANSCRIPT ROUTES =====
   app.get("/transcript/:id", requireAuth, async (req, res) => {
     try {
