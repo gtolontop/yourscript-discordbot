@@ -6,6 +6,7 @@ import { processRoleAllJob } from "../commands/admin/roleall.js";
 import { TicketService } from "../services/TicketService.js";
 import { startGiveawayScheduler } from "../commands/admin/giveaway.js";
 import { startWebServer } from "../web/server.js";
+import { ReminderService } from "../services/ReminderService.js";
 
 const event: Event<"clientReady"> = {
   name: "clientReady",
@@ -14,16 +15,25 @@ const event: Event<"clientReady"> = {
     logger.info(`Logged in as ${client.user?.tag}`);
     logger.info(`Serving ${client.guilds.cache.size} guilds`);
 
-    // Auto-deploy slash commands
+    // Auto-deploy slash commands (globally only)
     try {
       const commands = client.commands.map((cmd) => cmd.data.toJSON());
       const rest = new REST().setToken(client.token!);
 
+      // Deploy globally
       await rest.put(Routes.applicationCommands(client.user!.id), {
         body: commands,
       });
 
-      logger.info(`Deployed ${commands.length} slash commands`);
+      // Clear guild-specific commands to avoid duplicates
+      const guildId = process.env["GUILD_ID"];
+      if (guildId) {
+        await rest.put(Routes.applicationGuildCommands(client.user!.id, guildId), {
+          body: [],
+        });
+      }
+
+      logger.info(`Deployed ${commands.length} slash commands globally`);
     } catch (error) {
       logger.error("Failed to deploy commands:", error);
     }
@@ -117,10 +127,53 @@ const event: Event<"clientReady"> = {
       logger.info(`Invite me: ${invite}`);
     }
 
-    client.user?.setActivity({
-      name: "ton serveur",
-      type: ActivityType.Watching,
-    });
+    // Load saved status from database
+    try {
+      const botConfig = await client.db.botConfig.findUnique({
+        where: { id: "bot" },
+      });
+
+      if (botConfig?.statusType && botConfig?.statusText) {
+        const activityTypes: Record<string, ActivityType> = {
+          playing: ActivityType.Playing,
+          watching: ActivityType.Watching,
+          listening: ActivityType.Listening,
+          competing: ActivityType.Competing,
+          streaming: ActivityType.Streaming,
+        };
+
+        const activityType = activityTypes[botConfig.statusType];
+
+        if (activityType !== undefined) {
+          if (botConfig.statusType === "streaming" && botConfig.statusUrl) {
+            client.user?.setActivity({
+              name: botConfig.statusText,
+              type: activityType,
+              url: botConfig.statusUrl,
+            });
+          } else {
+            client.user?.setActivity({
+              name: botConfig.statusText,
+              type: activityType,
+            });
+          }
+        }
+        logger.info(`Restored status: ${botConfig.statusType} - ${botConfig.statusText}`);
+      } else {
+        // Default status
+        client.user?.setActivity({
+          name: "your server",
+          type: ActivityType.Watching,
+        });
+      }
+    } catch (error) {
+      logger.error("Failed to restore status:", error);
+      // Fallback to default
+      client.user?.setActivity({
+        name: "ton serveur",
+        type: ActivityType.Watching,
+      });
+    }
 
     // Start ticket auto-close scheduler
     const ticketService = new TicketService(client);
@@ -132,9 +185,84 @@ const event: Event<"clientReady"> = {
     logger.info("Giveaway scheduler started");
 
     // Start web server for transcripts
-    const webPort = parseInt(process.env.WEB_PORT ?? "3000");
-    startWebServer(client, webPort);
+    const webPort = parseInt(process.env['WEB_PORT'] ?? "3000");
+    const { aiNamespace } = startWebServer(client, webPort);
+    client.aiNamespace = aiNamespace;
+
+    // Start reminder service
+    const reminderService = new ReminderService(client);
+    reminderService.start();
+
+    // Start daily todo summary scheduler (09:00 Paris time)
+    startDailySummaryScheduler(client);
   },
 };
+
+function startDailySummaryScheduler(client: any) {
+  // Check every minute if it's 09:00 Paris time
+  let lastRunDate = "";
+
+  setInterval(async () => {
+    const now = new Date();
+    const parisTime = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Europe/Paris",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(now);
+
+    const today = now.toISOString().split("T")[0]!;
+
+    if (parisTime === "09:00" && lastRunDate !== today) {
+      lastRunDate = today;
+      logger.info("Running daily todo summary...");
+
+      try {
+        // Get all guilds with AI enabled and a todo channel
+        const guilds = await client.db.guild.findMany({
+          where: { aiEnabled: true, aiTodoChannel: { not: null } },
+        });
+
+        for (const guildConfig of guilds) {
+          const todos = await client.db.todo.findMany({
+            where: { guildId: guildConfig.id, status: { in: ["open", "in_progress"] } },
+            orderBy: { priority: "desc" },
+          });
+
+          if (todos.length === 0) continue;
+
+          const channel = client.channels.cache.get(guildConfig.aiTodoChannel);
+          if (!channel?.isTextBased() || channel.isDMBased()) continue;
+
+          const priorityEmoji: Record<string, string> = {
+            urgent: "🔴",
+            high: "🟠",
+            normal: "🟡",
+            low: "🟢",
+          };
+
+          const todoLines = todos.map((t: any) => {
+            const emoji = priorityEmoji[t.priority] ?? "🟡";
+            const assignee = t.assigneeId ? `<@${t.assigneeId}>` : "Unassigned";
+            const status = t.status === "in_progress" ? "🔄" : "📋";
+            return `${status} ${emoji} **${t.title}** — ${assignee}`;
+          });
+
+          const { EmbedBuilder } = await import("discord.js");
+          const embed = new EmbedBuilder()
+            .setTitle("📋 Daily Task Summary")
+            .setDescription(todoLines.join("\n"))
+            .setColor(0x5865f2)
+            .setFooter({ text: `${todos.length} open task(s)` })
+            .setTimestamp();
+
+          await (channel as any).send({ embeds: [embed] }).catch(() => {});
+        }
+      } catch (err) {
+        logger.error("Failed to run daily summary:", err);
+      }
+    }
+  }, 60_000);
+}
 
 export default event;
