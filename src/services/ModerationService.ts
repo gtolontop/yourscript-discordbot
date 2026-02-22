@@ -90,7 +90,8 @@ export class ModerationService {
       data: {
         userId,
         guildId,
-        moderator: moderatorId,
+        odbyUserId: userId,
+        odByModId: moderatorId,
         reason,
       },
     });
