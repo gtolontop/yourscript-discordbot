@@ -17,140 +17,146 @@ import { TicketService } from "../../services/TicketService.js";
 export default {
   data: new SlashCommandBuilder()
     .setName("ticket")
-    .setDescription("Système de tickets")
+    .setDescription("Ticket system")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand((sub) =>
       sub
         .setName("setup")
-        .setDescription("Configurer le système de tickets")
+        .setDescription("Configure the ticket system")
         .addChannelOption((opt) =>
           opt
             .setName("category")
-            .setDescription("Catégorie pour les tickets")
+            .setDescription("Category for tickets")
             .addChannelTypes(ChannelType.GuildCategory)
             .setRequired(true)
         )
         .addChannelOption((opt) =>
           opt
             .setName("transcripts")
-            .setDescription("Channel pour les transcripts")
+            .setDescription("Channel for transcripts")
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(true)
         )
         .addChannelOption((opt) =>
           opt
             .setName("review")
-            .setDescription("Channel pour les reviews staff (accept/refuse)")
+            .setDescription("Channel for staff reviews (accept/refuse)")
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(true)
         )
         .addChannelOption((opt) =>
           opt
             .setName("public_review")
-            .setDescription("Channel public pour les avis acceptés")
+            .setDescription("Public channel for accepted reviews")
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(true)
         )
         .addRoleOption((opt) =>
           opt
             .setName("support_role")
-            .setDescription("Rôle qui peut voir les tickets")
+            .setDescription("Role that can view tickets")
         )
     )
     .addSubcommand((sub) =>
-      sub.setName("panel").setDescription("Créer un panel pour les tickets (via modal)")
+      sub.setName("panel").setDescription("Create a ticket panel (via modal)")
     )
     .addSubcommand((sub) =>
       sub
         .setName("close")
-        .setDescription("Fermer le ticket actuel")
+        .setDescription("Close the current ticket")
     )
     .addSubcommand((sub) =>
       sub
         .setName("add")
-        .setDescription("Ajouter un utilisateur au ticket")
+        .setDescription("Add a user to the ticket")
         .addUserOption((opt) =>
-          opt.setName("user").setDescription("L'utilisateur à ajouter").setRequired(true)
+          opt.setName("user").setDescription("The user to add").setRequired(true)
         )
     )
     .addSubcommand((sub) =>
       sub
         .setName("remove")
-        .setDescription("Retirer un utilisateur du ticket")
+        .setDescription("Remove a user from the ticket")
         .addUserOption((opt) =>
-          opt.setName("user").setDescription("L'utilisateur à retirer").setRequired(true)
+          opt.setName("user").setDescription("The user to remove").setRequired(true)
         )
     )
     .addSubcommand((sub) =>
-      sub.setName("show").setDescription("Afficher la configuration des tickets")
+      sub.setName("show").setDescription("Display ticket configuration")
     )
     .addSubcommand((sub) =>
       sub
         .setName("staffrole")
-        .setDescription("Configurer le rôle staff")
+        .setDescription("Configure the staff role")
         .addRoleOption((opt) =>
-          opt.setName("role").setDescription("Le rôle staff").setRequired(true)
+          opt.setName("role").setDescription("The staff role").setRequired(true)
         )
     )
     .addSubcommand((sub) =>
       sub
         .setName("rename")
-        .setDescription("Renommer le ticket actuel")
+        .setDescription("Rename the current ticket")
         .addStringOption((opt) =>
-          opt.setName("name").setDescription("Nouveau nom").setRequired(true)
+          opt.setName("name").setDescription("New name").setRequired(true)
         )
     )
     .addSubcommand((sub) =>
-      sub.setName("claim").setDescription("Prendre en charge ce ticket")
+      sub.setName("claim").setDescription("Claim this ticket")
     )
     .addSubcommand((sub) =>
-      sub.setName("unclaim").setDescription("Libérer ce ticket")
+      sub.setName("unclaim").setDescription("Unclaim this ticket")
     )
     .addSubcommand((sub) =>
       sub
         .setName("priority")
-        .setDescription("Définir la priorité du ticket")
+        .setDescription("Set ticket priority")
         .addStringOption((opt) =>
           opt
             .setName("level")
-            .setDescription("Niveau de priorité")
+            .setDescription("Priority level")
             .setRequired(true)
             .addChoices(
-              { name: "🟢 Basse", value: "low" },
-              { name: "🟡 Normale", value: "normal" },
-              { name: "🟠 Haute", value: "high" },
-              { name: "🔴 Urgente", value: "urgent" }
+              { name: "🟢 Low", value: "low" },
+              { name: "🟡 Normal", value: "normal" },
+              { name: "🟠 High", value: "high" },
+              { name: "🔴 Urgent", value: "urgent" }
             )
         )
     )
     .addSubcommand((sub) =>
-      sub.setName("info").setDescription("Voir les infos du ticket actuel")
+      sub.setName("info").setDescription("View current ticket info")
     )
     .addSubcommand((sub) =>
       sub
         .setName("modal")
-        .setDescription("Configurer le modal de création de ticket")
+        .setDescription("Configure the ticket creation modal")
         .addStringOption((opt) =>
           opt
             .setName("label")
-            .setDescription("Label du champ sujet")
+            .setDescription("Subject field label")
             .setRequired(false)
         )
         .addStringOption((opt) =>
           opt
             .setName("placeholder")
-            .setDescription("Placeholder du champ sujet")
+            .setDescription("Subject field placeholder")
             .setRequired(false)
         )
         .addBooleanOption((opt) =>
           opt
             .setName("required")
-            .setDescription("Sujet obligatoire ?")
+            .setDescription("Subject required?")
             .setRequired(false)
         )
     )
     .addSubcommand((sub) =>
-      sub.setName("stats").setDescription("Voir les statistiques des tickets")
+      sub.setName("stats").setDescription("View ticket statistics")
+    )
+    .addSubcommand((sub) =>
+      sub.setName("summary").setDescription("Generate an AI summary of the current ticket")
+    )
+    .addSubcommand((sub) =>
+      sub.setName("context").setDescription("View AI context and sentiment for the current ticket")
     ),
 
   async execute(interaction, client) {
@@ -186,15 +192,15 @@ export default {
 
       await interaction.reply(
         successMessage({
-          title: "🎫 Tickets configurés",
+          title: "🎫 Tickets Configured",
           description: [
-            `**Catégorie:** ${category.name}`,
+            `**Category:** ${category.name}`,
             `**Transcripts:** <#${transcripts.id}>`,
-            `**Review staff:** <#${review.id}>`,
-            `**Avis publics:** <#${publicReview.id}>`,
-            supportRole ? `**Rôle support:** ${supportRole.name}` : null,
+            `**Staff review:** <#${review.id}>`,
+            `**Public reviews:** <#${publicReview.id}>`,
+            supportRole ? `**Support role:** ${supportRole.name}` : null,
             "",
-            "Utilise `/ticket panel` pour créer un panel de tickets.",
+            "Use `/ticket panel` to create a ticket panel.",
           ].filter(Boolean).join("\n"),
         })
       );
@@ -205,7 +211,7 @@ export default {
 
       if (!config?.ticketCategoryId) {
         return interaction.reply({
-          ...errorMessage({ description: "Configure d'abord le système avec `/ticket setup`" }),
+          ...errorMessage({ description: "Configure the system first with `/ticket setup`" }),
           ephemeral: true,
         });
       }
@@ -213,11 +219,11 @@ export default {
       // Show modal to configure the panel
       const modal = new ModalBuilder()
         .setCustomId("ticket_panel_create")
-        .setTitle("Créer un panel de tickets");
+        .setTitle("Create a ticket panel");
 
       const titleInput = new TextInputBuilder()
         .setCustomId("panel_title")
-        .setLabel("Titre du panel")
+        .setLabel("Panel title")
         .setPlaceholder("Support")
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
@@ -226,23 +232,23 @@ export default {
       const descInput = new TextInputBuilder()
         .setCustomId("panel_description")
         .setLabel("Description")
-        .setPlaceholder("Clique sur le bouton ci-dessous pour créer un ticket...")
+        .setPlaceholder("Click the button below to create a ticket...")
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(true)
         .setMaxLength(1000);
 
       const buttonTextInput = new TextInputBuilder()
         .setCustomId("panel_button_text")
-        .setLabel("Texte du bouton")
-        .setPlaceholder("Créer un ticket")
-        .setValue("Créer un ticket")
+        .setLabel("Button text")
+        .setPlaceholder("Create a ticket")
+        .setValue("Create a ticket")
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
         .setMaxLength(50);
 
       const buttonEmojiInput = new TextInputBuilder()
         .setCustomId("panel_button_emoji")
-        .setLabel("Emoji du bouton (optionnel)")
+        .setLabel("Button emoji (optional)")
         .setPlaceholder("🎫")
         .setValue("🎫")
         .setStyle(TextInputStyle.Short)
@@ -267,13 +273,13 @@ export default {
 
       if (!ticket) {
         return interaction.reply({
-          ...errorMessage({ description: "Ce channel n'est pas un ticket." }),
+          ...errorMessage({ description: "This channel is not a ticket." }),
           ephemeral: true,
         });
       }
 
       await interaction.reply(
-        warningMessage({ description: "Fermeture du ticket en cours..." })
+        warningMessage({ description: "Closing ticket..." })
       );
 
       await ticketService.closeTicket(channel, interaction.user);
@@ -289,7 +295,7 @@ export default {
 
       if (!ticket) {
         return interaction.reply({
-          ...errorMessage({ description: "Ce channel n'est pas un ticket." }),
+          ...errorMessage({ description: "This channel is not a ticket." }),
           ephemeral: true,
         });
       }
@@ -302,7 +308,7 @@ export default {
       });
 
       await interaction.reply(
-        successMessage({ description: `${user.toString()} a été ajouté au ticket.` })
+        successMessage({ description: `${user.toString()} has been added to the ticket.` })
       );
     }
 
@@ -316,7 +322,7 @@ export default {
 
       if (!ticket) {
         return interaction.reply({
-          ...errorMessage({ description: "Ce channel n'est pas un ticket." }),
+          ...errorMessage({ description: "This channel is not a ticket." }),
           ephemeral: true,
         });
       }
@@ -324,7 +330,7 @@ export default {
       await channel.permissionOverwrites.delete(user.id);
 
       await interaction.reply(
-        successMessage({ description: `${user.toString()} a été retiré du ticket.` })
+        successMessage({ description: `${user.toString()} has been removed from the ticket.` })
       );
     }
 
@@ -334,21 +340,21 @@ export default {
       if (!config?.ticketCategoryId) {
         return interaction.reply(
           warningMessage({
-            description: "Le système de tickets n'est pas configuré.\nUtilise `/ticket setup` pour le configurer.",
+            description: "The ticket system is not configured.\nUse `/ticket setup` to configure it.",
           })
         );
       }
 
       await interaction.reply(
         createMessage({
-          title: "🎫 Configuration des tickets",
+          title: "🎫 Ticket Configuration",
           description: [
-            `**Catégorie:** <#${config.ticketCategoryId}>`,
-            `**Transcripts:** ${config.ticketTranscriptChannel ? `<#${config.ticketTranscriptChannel}>` : "Non configuré"}`,
-            `**Review staff:** ${config.ticketReviewChannel ? `<#${config.ticketReviewChannel}>` : "Non configuré"}`,
-            `**Avis publics:** ${config.ticketPublicReviewChannel ? `<#${config.ticketPublicReviewChannel}>` : "Non configuré"}`,
-            `**Rôle support:** ${config.ticketSupportRole ? `<@&${config.ticketSupportRole}>` : "Non configuré"}`,
-            `**Tickets créés:** ${config.ticketCounter}`,
+            `**Category:** <#${config.ticketCategoryId}>`,
+            `**Transcripts:** ${config.ticketTranscriptChannel ? `<#${config.ticketTranscriptChannel}>` : "Not configured"}`,
+            `**Staff review:** ${config.ticketReviewChannel ? `<#${config.ticketReviewChannel}>` : "Not configured"}`,
+            `**Public reviews:** ${config.ticketPublicReviewChannel ? `<#${config.ticketPublicReviewChannel}>` : "Not configured"}`,
+            `**Support role:** ${config.ticketSupportRole ? `<@&${config.ticketSupportRole}>` : "Not configured"}`,
+            `**Tickets created:** ${config.ticketCounter}`,
           ].join("\n"),
           color: "Primary",
         })
@@ -366,7 +372,7 @@ export default {
 
       await interaction.reply(
         successMessage({
-          description: `Rôle staff défini sur ${role.toString()}`,
+          description: `Staff role set to ${role.toString()}`,
         })
       );
     }
@@ -381,14 +387,14 @@ export default {
 
       if (!ticket) {
         return interaction.reply({
-          ...errorMessage({ description: "Ce channel n'est pas un ticket." }),
+          ...errorMessage({ description: "This channel is not a ticket." }),
           ephemeral: true,
         });
       }
 
       await channel.setName(newName);
       await interaction.reply(
-        successMessage({ description: `Ticket renommé en **${newName}**` })
+        successMessage({ description: `Ticket renamed to **${newName}**` })
       );
     }
 
@@ -401,14 +407,14 @@ export default {
 
       if (!ticket) {
         return interaction.reply({
-          ...errorMessage({ description: "Ce channel n'est pas un ticket." }),
+          ...errorMessage({ description: "This channel is not a ticket." }),
           ephemeral: true,
         });
       }
 
       if (ticket.claimedBy) {
         return interaction.reply({
-          ...errorMessage({ description: `Ce ticket est déjà pris en charge par <@${ticket.claimedBy}>` }),
+          ...errorMessage({ description: `This ticket is already claimed by <@${ticket.claimedBy}>` }),
           ephemeral: true,
         });
       }
@@ -419,12 +425,12 @@ export default {
       });
 
       await channel.setTopic(
-        `Ticket de <@${ticket.userId}> | ${ticket.subject ?? "Pas de sujet"} | Pris en charge par ${interaction.user.tag}`
+        `Ticket by <@${ticket.userId}> | ${ticket.subject ?? "No subject"} | Claimed by ${interaction.user.tag}`
       );
 
       await interaction.reply(
         successMessage({
-          description: `${interaction.user.toString()} prend en charge ce ticket.`,
+          description: `${interaction.user.toString()} has claimed this ticket.`,
         })
       );
     }
@@ -438,14 +444,14 @@ export default {
 
       if (!ticket) {
         return interaction.reply({
-          ...errorMessage({ description: "Ce channel n'est pas un ticket." }),
+          ...errorMessage({ description: "This channel is not a ticket." }),
           ephemeral: true,
         });
       }
 
       if (!ticket.claimedBy) {
         return interaction.reply({
-          ...errorMessage({ description: "Ce ticket n'est pas pris en charge." }),
+          ...errorMessage({ description: "This ticket is not claimed." }),
           ephemeral: true,
         });
       }
@@ -456,11 +462,11 @@ export default {
       });
 
       await channel.setTopic(
-        `Ticket de <@${ticket.userId}> | ${ticket.subject ?? "Pas de sujet"}`
+        `Ticket by <@${ticket.userId}> | ${ticket.subject ?? "No subject"}`
       );
 
       await interaction.reply(
-        successMessage({ description: "Ticket libéré." })
+        successMessage({ description: "Ticket unclaimed." })
       );
     }
 
@@ -474,7 +480,7 @@ export default {
 
       if (!ticket) {
         return interaction.reply({
-          ...errorMessage({ description: "Ce channel n'est pas un ticket." }),
+          ...errorMessage({ description: "This channel is not a ticket." }),
           ephemeral: true,
         });
       }
@@ -485,10 +491,10 @@ export default {
       });
 
       const priorityLabels: Record<string, string> = {
-        low: "🟢 Basse",
-        normal: "🟡 Normale",
-        high: "🟠 Haute",
-        urgent: "🔴 Urgente",
+        low: "🟢 Low",
+        normal: "🟡 Normal",
+        high: "🟠 High",
+        urgent: "🔴 Urgent",
       };
 
       // Rename channel with priority prefix for urgent/high
@@ -504,7 +510,7 @@ export default {
 
       await interaction.reply(
         successMessage({
-          description: `Priorité définie sur **${priorityLabels[priority]}**`,
+          description: `Priority set to **${priorityLabels[priority]}**`,
         })
       );
     }
@@ -518,16 +524,16 @@ export default {
 
       if (!ticket) {
         return interaction.reply({
-          ...errorMessage({ description: "Ce channel n'est pas un ticket." }),
+          ...errorMessage({ description: "This channel is not a ticket." }),
           ephemeral: true,
         });
       }
 
       const priorityLabels: Record<string, string> = {
-        low: "🟢 Basse",
-        normal: "🟡 Normale",
-        high: "🟠 Haute",
-        urgent: "🔴 Urgente",
+        low: "🟢 Low",
+        normal: "🟡 Normal",
+        high: "🟠 High",
+        urgent: "🔴 Urgent",
       };
 
       const createdAgo = Math.floor((Date.now() - ticket.createdAt.getTime()) / 1000);
@@ -539,12 +545,12 @@ export default {
         createMessage({
           title: `🎫 Ticket #${ticket.number.toString().padStart(4, "0")}`,
           description: [
-            `**Créé par:** <@${ticket.userId}>`,
-            `**Sujet:** ${ticket.subject ?? "Aucun"}`,
-            `**Priorité:** ${priorityLabels[ticket.priority] ?? "Normale"}`,
-            `**Pris en charge par:** ${ticket.claimedBy ? `<@${ticket.claimedBy}>` : "Personne"}`,
+            `**Created by:** <@${ticket.userId}>`,
+            `**Subject:** ${ticket.subject ?? "None"}`,
+            `**Priority:** ${priorityLabels[ticket.priority] ?? "Normal"}`,
+            `**Claimed by:** ${ticket.claimedBy ? `<@${ticket.claimedBy}>` : "Nobody"}`,
             `**Status:** ${ticket.status}`,
-            `**Ouvert depuis:** ${duration}`,
+            `**Open for:** ${duration}`,
           ].join("\n"),
           color: "Primary",
         })
@@ -560,19 +566,19 @@ export default {
       const currentConfig = await ticketService.getConfig(guildId);
 
       const updateData: Record<string, any> = {};
-      if (label !== null) updateData.ticketModalLabel = label;
-      if (placeholder !== null) updateData.ticketModalPlaceholder = placeholder;
-      if (required !== null) updateData.ticketModalRequired = required;
+      if (label !== null) updateData['ticketModalLabel'] = label;
+      if (placeholder !== null) updateData['ticketModalPlaceholder'] = placeholder;
+      if (required !== null) updateData['ticketModalRequired'] = required;
 
       if (Object.keys(updateData).length === 0) {
         // Show current config
         return interaction.reply(
           createMessage({
-            title: "🎫 Configuration du modal",
+            title: "🎫 Modal Configuration",
             description: [
-              `**Label:** ${currentConfig?.ticketModalLabel ?? "Sujet (optionnel)"}`,
-              `**Placeholder:** ${currentConfig?.ticketModalPlaceholder ?? "Décris brièvement ton problème..."}`,
-              `**Obligatoire:** ${currentConfig?.ticketModalRequired ? "Oui" : "Non"}`,
+              `**Label:** ${currentConfig?.ticketModalLabel ?? "Subject (optional)"}`,
+              `**Placeholder:** ${currentConfig?.ticketModalPlaceholder ?? "Briefly describe your issue..."}`,
+              `**Required:** ${currentConfig?.ticketModalRequired ? "Yes" : "No"}`,
             ].join("\n"),
             color: "Primary",
           })
@@ -587,7 +593,7 @@ export default {
 
       await interaction.reply(
         successMessage({
-          description: "Configuration du modal mise à jour !",
+          description: "Modal configuration updated!",
         })
       );
     }
@@ -607,7 +613,7 @@ export default {
       // Tickets by category
       const byCategory: Record<string, number> = {};
       tickets.forEach((t) => {
-        const cat = t.category ?? "Sans catégorie";
+        const cat = t.category ?? "Uncategorized";
         byCategory[cat] = (byCategory[cat] || 0) + 1;
       });
 
@@ -634,22 +640,239 @@ export default {
 
       await interaction.reply(
         createMessage({
-          title: "📊 Statistiques des tickets",
+          title: "📊 Ticket Statistics",
           description: [
-            "**Général**",
+            "**General**",
             `• Total: **${totalTickets}**`,
-            `• Ouverts: **${openTickets}**`,
-            `• Fermés: **${closedTickets}**`,
-            `• Aujourd'hui: **${ticketsToday}**`,
-            `• Cette semaine: **${ticketsWeek}**`,
+            `• Open: **${openTickets}**`,
+            `• Closed: **${closedTickets}**`,
+            `• Today: **${ticketsToday}**`,
+            `• This week: **${ticketsWeek}**`,
             "",
-            "**Avis**",
-            `• Note moyenne: **${avgRating}** ⭐`,
-            `• Avis reçus: **${ratedTickets.length}**`,
+            "**Reviews**",
+            `• Average rating: **${avgRating}** ⭐`,
+            `• Reviews received: **${ratedTickets.length}**`,
             "",
-            "**Par catégorie**",
-            categoryLines || "Aucune donnée",
+            "**By category**",
+            categoryLines || "No data",
           ].join("\n"),
+          color: "Primary",
+        })
+      );
+    }
+
+    if (subcommand === "summary") {
+      const channel = interaction.channel as TextChannel;
+      const ticket = await client.db.ticket.findUnique({
+        where: { channelId: channel.id },
+      });
+
+      if (!ticket) {
+        return interaction.reply({
+          ...errorMessage({ description: "This channel is not a ticket." }),
+          ephemeral: true,
+        });
+      }
+
+      if (!client.aiNamespace) {
+        return interaction.reply({
+          ...errorMessage({ description: "AI system is not connected." }),
+          ephemeral: true,
+        });
+      }
+
+      await interaction.deferReply();
+
+      // Fetch recent messages from channel
+      const messages = await channel.messages.fetch({ limit: 100 });
+      const sortedMessages = [...messages.values()].reverse();
+      const conversationMessages = sortedMessages
+        .filter((m) => m.content && !m.author.bot)
+        .map((m) => ({
+          role: m.author.id === ticket.userId ? "user" : "staff",
+          content: m.content,
+        }));
+
+      // Include bot/AI messages too
+      const allMessages = sortedMessages
+        .filter((m) => m.content)
+        .map((m) => ({
+          role: m.author.id === ticket.userId ? "user" : m.author.bot ? "ai" : "staff",
+          content: m.content,
+        }));
+
+      // Get existing summary
+      const existingSummary = await client.db.ticketSummary.findUnique({
+        where: { ticketId: ticket.id },
+      });
+
+      // Request summary from AI
+      const aiSockets = await client.aiNamespace.fetchSockets();
+      if (aiSockets.length === 0) {
+        return interaction.editReply(
+          errorMessage({ description: "AI client is offline." })
+        );
+      }
+
+      try {
+        const result = await new Promise<any>((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error("Timeout")), 30000);
+          aiSockets[0]!.emit("query:generateSummary" as any, {
+            channelId: channel.id,
+            guildId: guildId,
+            ticketId: ticket.id,
+            messages: allMessages,
+            previousSummary: existingSummary?.summary ?? null,
+          }, (res: any) => {
+            clearTimeout(timeout);
+            resolve(res);
+          });
+        });
+
+        // Store the summary
+        await client.db.ticketSummary.upsert({
+          where: { ticketId: ticket.id },
+          create: {
+            ticketId: ticket.id,
+            channelId: channel.id,
+            guildId: guildId,
+            summary: result.summary,
+            keyPoints: JSON.stringify(result.keyPoints ?? []),
+            sentiment: result.sentiment ?? "neutral",
+            trend: result.trend ?? "stable",
+            suggestions: JSON.stringify(result.suggestions ?? []),
+            messageCount: allMessages.length,
+          },
+          update: {
+            summary: result.summary,
+            keyPoints: JSON.stringify(result.keyPoints ?? []),
+            sentiment: result.sentiment ?? "neutral",
+            trend: result.trend ?? "stable",
+            suggestions: JSON.stringify(result.suggestions ?? []),
+            messageCount: allMessages.length,
+          },
+        });
+
+        const sentimentEmoji: Record<string, string> = {
+          positive: "😊",
+          neutral: "😐",
+          negative: "😟",
+          frustrated: "😤",
+        };
+
+        const trendEmoji: Record<string, string> = {
+          improving: "📈",
+          stable: "➡️",
+          declining: "📉",
+        };
+
+        const keyPoints = (result.keyPoints ?? []) as string[];
+        const suggestions = (result.suggestions ?? []) as string[];
+
+        await interaction.editReply(
+          createMessage({
+            title: `📋 Ticket #${ticket.number.toString().padStart(4, "0")} — Summary`,
+            description: [
+              `**Summary**`,
+              result.summary,
+              "",
+              keyPoints.length > 0 ? `**Key Points**\n${keyPoints.map((p: string) => `• ${p}`).join("\n")}` : null,
+              "",
+              `**Mood:** ${sentimentEmoji[result.sentiment] ?? "😐"} ${result.sentiment} ${trendEmoji[result.trend] ?? "➡️"} ${result.trend}`,
+              "",
+              suggestions.length > 0 ? `**Suggestions**\n${suggestions.map((s: string) => `💡 ${s}`).join("\n")}` : null,
+              "",
+              `-# ${allMessages.length} messages analyzed`,
+            ].filter(Boolean).join("\n"),
+            color: "Primary",
+          })
+        );
+      } catch (err) {
+        await interaction.editReply(
+          errorMessage({ description: "Failed to generate summary. Is the AI client connected?" })
+        );
+      }
+    }
+
+    if (subcommand === "context") {
+      const channel = interaction.channel as TextChannel;
+      const ticket = await client.db.ticket.findUnique({
+        where: { channelId: channel.id },
+      });
+
+      if (!ticket) {
+        return interaction.reply({
+          ...errorMessage({ description: "This channel is not a ticket." }),
+          ephemeral: true,
+        });
+      }
+
+      // Get existing summary from DB
+      const summary = await client.db.ticketSummary.findUnique({
+        where: { ticketId: ticket.id },
+      });
+
+      // Get message count in channel
+      const messages = await channel.messages.fetch({ limit: 100 });
+      const totalMessages = messages.size;
+
+      const sentimentEmoji: Record<string, string> = {
+        positive: "😊",
+        neutral: "😐",
+        negative: "😟",
+        frustrated: "😤",
+      };
+
+      const trendEmoji: Record<string, string> = {
+        improving: "📈",
+        stable: "➡️",
+        declining: "📉",
+      };
+
+      const priorityLabels: Record<string, string> = {
+        low: "🟢 Low",
+        normal: "🟡 Normal",
+        high: "🟠 High",
+        urgent: "🔴 Urgent",
+      };
+
+      const createdAgo = Math.floor((Date.now() - ticket.createdAt.getTime()) / 1000);
+      const hours = Math.floor(createdAgo / 3600);
+      const minutes = Math.floor((createdAgo % 3600) / 60);
+      const duration = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+      let summarySection = "No summary yet. Run `/ticket summary` to generate one.";
+      let suggestionsSection = "";
+
+      if (summary) {
+        summarySection = summary.summary;
+        const keyPoints = JSON.parse(summary.keyPoints) as string[];
+        const suggestions = JSON.parse(summary.suggestions) as string[];
+
+        if (keyPoints.length > 0) {
+          summarySection += `\n\n**Key Points:**\n${keyPoints.map((p) => `• ${p}`).join("\n")}`;
+        }
+        if (suggestions.length > 0) {
+          suggestionsSection = `\n\n**Suggestions:**\n${suggestions.map((s) => `💡 ${s}`).join("\n")}`;
+        }
+      }
+
+      await interaction.reply(
+        createMessage({
+          title: `🧠 Ticket #${ticket.number.toString().padStart(4, "0")} — Context`,
+          description: [
+            `**Status:** ${ticket.status} | **Priority:** ${priorityLabels[ticket.priority] ?? "Normal"}`,
+            `**Created by:** <@${ticket.userId}> | **Open for:** ${duration}`,
+            `**Claimed by:** ${ticket.claimedBy ? `<@${ticket.claimedBy}>` : "Nobody"}`,
+            `**Messages:** ${totalMessages}`,
+            "",
+            `**AI Summary:**`,
+            summarySection,
+            summary ? `\n**Mood:** ${sentimentEmoji[summary.sentiment] ?? "😐"} ${summary.sentiment} ${trendEmoji[summary.trend] ?? "➡️"} ${summary.trend}` : "",
+            suggestionsSection,
+            "",
+            summary ? `-# Last updated: <t:${Math.floor(summary.updatedAt.getTime() / 1000)}:R> (${summary.messageCount} msgs)` : "",
+          ].filter(Boolean).join("\n"),
           color: "Primary",
         })
       );
