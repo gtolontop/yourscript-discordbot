@@ -61,7 +61,16 @@ export class ActionParser {
       lower.includes("ping") ||
       lower.includes("ask") ||
       lower.includes("let me get") ||
-      lower.includes("attends");
+      lower.includes("attends") ||
+      lower.includes("glad") ||
+      lower.includes("worked") ||
+      lower.includes("résolu") ||
+      lower.includes("resolved") ||
+      lower.includes("parfait") ||
+      lower.includes("n'hésite pas") ||
+      lower.includes("help") ||
+      lower.includes("np") ||
+      lower.includes("any time");
 
     if (!hasActionHint) return [];
 
