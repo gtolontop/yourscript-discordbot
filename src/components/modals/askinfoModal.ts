@@ -15,27 +15,27 @@ export default {
     const other = interaction.fields.getTextInputValue("other");
 
     const embed = new EmbedBuilder()
-      .setTitle(`📝 Informations fournies par ${interaction.user.username}`)
+      .setTitle(`📝 Information provided by ${interaction.user.username}`)
       .setColor(0x5865f2)
       .setTimestamp();
 
-    if (requestType) embed.addFields({ name: "Type de demande", value: requestType });
-    if (website) embed.addFields({ name: "Site web", value: website });
+    if (requestType) embed.addFields({ name: "Type of request", value: requestType });
+    if (website) embed.addFields({ name: "Website", value: website });
     if (youtube) embed.addFields({ name: "YouTube", value: youtube });
-    if (members) embed.addFields({ name: "Membres / Followers", value: members });
-    if (other) embed.addFields({ name: "Autres", value: other });
+    if (members) embed.addFields({ name: "Members / Followers", value: members });
+    if (other) embed.addFields({ name: "Other", value: other });
 
     // Update the message that had the button
     if (interaction.message) {
       await interaction.message.edit({
-        content: staffId !== "none" ? `<@${staffId}>, le membre a fourni les informations requises.` : "Les informations requises ont été fournies.",
+        content: staffId !== "none" ? `<@${staffId}>, the user has provided the requested information.` : "The requested information has been provided.",
         embeds: [embed],
         components: [] // disable the button
       });
-      await interaction.reply({ content: "Merci d'avoir fourni ces informations.", ephemeral: true });
+      await interaction.reply({ content: "Thanks for providing this information.", ephemeral: true });
     } else {
         await interaction.reply({
-            content: staffId !== "none" ? `<@${staffId}>, voici les infos:` : "Voici les infos:",
+            content: staffId !== "none" ? `<@${staffId}>, here is the information:` : "Here is the information:",
             embeds: [embed]
         });
     }

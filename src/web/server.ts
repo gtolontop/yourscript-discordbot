@@ -266,15 +266,15 @@ export function startWebServer(client: Bot, port: number = 3000): { app: ReturnT
         }
         const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = await import("discord.js");
         const embed = new EmbedBuilder()
-          .setTitle("📋 Informations requises")
-          .setDescription("Afin de mieux traiter votre demande, merci de bien vouloir nous fournir quelques informations supplémentaires en cliquant sur le bouton ci-dessous.\n\n*(Sujet de la demande, Site web, YouTube, Membres...)*")
+          .setTitle("📋 Required Information")
+          .setDescription("In order for us to better process your request, please provide some additional information by clicking the button below.\n\n*(Reason, Website, YouTube, Follower count, etc.)*")
           .setColor(0x5865f2)
-          .setFooter({ text: "Formulaire de renseignements" });
+          .setFooter({ text: "Information Form" });
           
         const row = new ActionRowBuilder<any>().addComponents(
           new ButtonBuilder()
             .setCustomId("askinfo_btn_none")
-            .setLabel("Fournir les informations")
+            .setLabel("Provide Information")
             .setEmoji("📝")
             .setStyle(ButtonStyle.Primary)
         );

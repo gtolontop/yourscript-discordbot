@@ -11,37 +11,37 @@ export default {
     // Create modal
     const modal = new ModalBuilder()
       .setCustomId(`askinfo_modal_${staffId}`)
-      .setTitle("Informations Additionnelles");
+      .setTitle("Additional Information");
 
     const reqTypeInput = new TextInputBuilder()
       .setCustomId("request_type")
-      .setLabel("Type de demande / Giveaway")
+      .setLabel("Type of request / Giveaway")
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder("Ex: Partenariat, Giveaway, etc.")
+      .setPlaceholder("e.g. Partnership, Giveaway, etc.")
       .setRequired(true);
 
     const websiteInput = new TextInputBuilder()
       .setCustomId("website")
-      .setLabel("Site web (Optionnel)")
+      .setLabel("Website (Optional)")
       .setStyle(TextInputStyle.Short)
       .setRequired(false);
 
     const youtubeInput = new TextInputBuilder()
       .setCustomId("youtube")
-      .setLabel("Chaîne YouTube (Optionnel)")
+      .setLabel("YouTube Channel (Optional)")
       .setStyle(TextInputStyle.Short)
       .setRequired(false);
 
     const membersInput = new TextInputBuilder()
       .setCustomId("members")
-      .setLabel("Membres / Followers Actuels")
+      .setLabel("Members / Followers Count")
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder("Ex: 1500 Membres Discord")
+      .setPlaceholder("e.g. 1500 Discord Members")
       .setRequired(false);
 
     const otherInput = new TextInputBuilder()
       .setCustomId("other")
-      .setLabel("Autres informations pertinentes")
+      .setLabel("Other relevant information")
       .setStyle(TextInputStyle.Paragraph)
       .setRequired(false);
 

@@ -5,20 +5,20 @@ import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from "disc
 export default {
   data: new SlashCommandBuilder()
     .setName("question")
-    .setDescription("Envoie un formulaire au membre pour obtenir plus d'informations")
+    .setDescription("Sends a form to the member to ask for more information")
     .setDefaultMemberPermissions(0), // staff only
 
   async execute(interaction, client) {
     const embed = new EmbedBuilder()
-      .setTitle("📋 Informations requises")
-      .setDescription("Afin de mieux traiter votre demande, merci de bien vouloir nous fournir quelques informations supplémentaires en cliquant sur le bouton ci-dessous.\n\n*(Sujet de la demande, Site web, YouTube, Membres...)*")
+      .setTitle("📋 Required Information")
+      .setDescription("In order for us to better process your request, please provide some additional information by clicking the button below.\n\n*(Reason, Website, YouTube, Follower count, etc.)*")
       .setColor(0x5865f2)
-      .setFooter({ text: "Formulaire de renseignements" });
+      .setFooter({ text: "Information Form" });
 
     const row = new ActionRowBuilder<any>().addComponents(
       new ButtonBuilder()
         .setCustomId(`askinfo_btn_${interaction.user.id}`)
-        .setLabel("Fournir les informations")
+        .setLabel("Provide Information")
         .setEmoji("📝")
         .setStyle(ButtonStyle.Primary)
     );
