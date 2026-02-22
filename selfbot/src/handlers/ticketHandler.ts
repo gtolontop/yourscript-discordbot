@@ -570,8 +570,12 @@ export class TicketHandler {
 
       await (channel as any).send(response.text);
       logger.ai(`Responded in ${channelId}`);
-    } catch (err) {
-      logger.error("Failed to respond:", err);
+    } catch (err: any) {
+      if (err.code === 10003) {
+        logger.ai(`Responded failed (Ticket closed: Unknown Channel) in ${channelId}`);
+      } else {
+        logger.error("Failed to respond:", err);
+      }
     }
   }
 

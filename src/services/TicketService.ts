@@ -274,6 +274,9 @@ export class TicketService {
           negative: "😟",
           frustrated: "😤",
         };
+        // Wait briefly for selfbot to sync final summary cost
+        await new Promise(r => setTimeout(r, 1500));
+        
         // Get ticket cost if available
         const ticketCost = await this.client.db.aITicketCost.findUnique({
           where: { ticketId: ticket.id },
