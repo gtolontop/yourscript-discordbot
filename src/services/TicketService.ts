@@ -149,7 +149,7 @@ export class TicketService {
       const descEmbed = new EmbedBuilder()
         .setAuthor({ name: user.tag, iconURL: user.displayAvatarURL() })
         .setDescription(extraData.description)
-        .setColor(Colors.Secondary)
+        .setColor(0x2b2d31)
         .setTimestamp();
       await channel.send({ embeds: [descEmbed] });
     }
