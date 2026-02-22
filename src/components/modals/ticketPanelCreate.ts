@@ -30,13 +30,15 @@ export default {
     );
 
     // Send panel to channel (classic embed, not Components V2)
-    await interaction.channel?.send({
-      embeds: [embed],
-      components: [button],
-    });
+    if (interaction.channel && 'send' in interaction.channel) {
+      await interaction.channel.send({
+        embeds: [embed],
+        components: [button],
+      });
+    }
 
     await interaction.reply({
-      content: "✅ Panel de tickets envoyé !",
+      content: "✅ Ticket panel sent!",
       ephemeral: true,
     });
   },
