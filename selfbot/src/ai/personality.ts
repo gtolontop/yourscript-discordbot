@@ -203,11 +203,7 @@ export function getTicketSystemPrompt(
 
   let prompt = `${base}\n\n${typePrompt}`;
 
-  if (context) {
-    prompt += `\n\n${context}`;
-  }
-
-  // Inject knowledge base
+  // Inject knowledge base FIRST to maximize prefix caching (Zero-Waste AI)
   if (knowledge && knowledge.length > 0) {
     const sections: Record<string, string[]> = {};
     for (const item of knowledge) {
@@ -230,6 +226,11 @@ export function getTicketSystemPrompt(
     }
     prompt += "\n--- END KNOWLEDGE BASE ---";
     prompt += "\nUse this knowledge naturally in conversations. Don't quote it word for word, just incorporate it.";
+  }
+
+  // Dynamic context goes LAST so it doesn't break the cache of the knowledge base
+  if (context) {
+    prompt += `\n\n${context}`;
   }
 
   const langNames: Record<SupportedLanguage, string> = { en: "English", fr: "French", es: "Spanish", de: "German", pt: "Portuguese" };
