@@ -65,12 +65,32 @@ export default {
       if (reviewChannel) {
         const stars = "⭐".repeat(rating) + "☆".repeat(5 - rating);
 
+        const transcript = await client.db.transcript.findFirst({
+          where: { ticketId: ticket.id },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        const aiSummary = await client.db.ticketSummary.findUnique({
+          where: { ticketId: ticket.id },
+        });
+
+        const webUrl = process.env['WEB_URL'] ?? `http://localhost:${process.env['WEB_PORT'] ?? 3000}`;
+        const transcriptUrl = transcript ? `${webUrl}/transcript/${transcript.id}` : null;
+        const transcriptLink = transcriptUrl ? `[View online](${transcriptUrl})` : "Not available";
+
+        const closedBy = ticket.closedBy ? (ticket.closedBy === client.user?.id ? "🤖 AI Assistant" : `<@${ticket.closedBy}>`) : "Unknown";
+
         const reviewEmbed = new EmbedBuilder()
           .setTitle(`⭐ Review Received - Ticket #${ticket.number.toString().padStart(4, "0")}`)
           .setDescription([
-            `**From:** ${interaction.user.tag} (<@${interaction.user.id}>)`,
+            `**From:** <@${interaction.user.id}>`,
             `**Rating:** ${stars}`,
+            `**Subject:** ${ticket.subject ?? "None"}`,
+            `**Closed By:** ${closedBy}`,
+            `**Transcript:** ${transcriptLink}`,
             "",
+            ...(aiSummary ? [`**AI Summary:** ${aiSummary.summary.substring(0, 300)}${aiSummary.summary.length > 300 ? "..." : ""}`, ""] : []),
+            `**User Review:**`,
             `> ${review}`,
           ].join("\n"))
           .setColor(Colors.Warning)
