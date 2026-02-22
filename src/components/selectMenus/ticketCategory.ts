@@ -18,8 +18,8 @@ export default {
       where: { id: guildId },
     });
 
-    const label = config?.ticketModalLabel ?? "Sujet (optionnel)";
-    const placeholder = config?.ticketModalPlaceholder ?? "Décris brièvement ton problème...";
+    const label = config?.ticketModalLabel ?? "Subject (optional)";
+    const placeholder = config?.ticketModalPlaceholder ?? "Briefly describe your issue...";
     const required = config?.ticketModalRequired ?? false;
 
     // Show modal with category encoded in customId
