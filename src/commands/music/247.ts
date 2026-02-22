@@ -6,7 +6,7 @@ import { errorMessage, successMessage, warningMessage } from "../../utils/index.
 export default {
   data: new SlashCommandBuilder()
     .setName("247")
-    .setDescription("Active/désactive le mode 24/7 (reste dans le salon)")
+    .setDescription("Toggle 24/7 mode (stays in the channel)")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
   async execute(interaction, client) {
@@ -17,7 +17,7 @@ export default {
     if (!connection) {
       return interaction.reply({
         ...errorMessage({
-          description: "Je dois être dans un salon vocal pour activer/désactiver le mode 24/7.\nUtilise `/join` d'abord.",
+          description: "I must be in a voice channel to toggle 24/7 mode.\nUse `/join` first.",
         }),
         ephemeral: true,
       });
@@ -37,8 +37,8 @@ export default {
 
       return interaction.reply(
         warningMessage({
-          title: "Mode 24/7 désactivé",
-          description: "Le bot quittera le salon quand la queue sera vide.",
+          title: "24/7 Mode Disabled",
+          description: "The bot will leave the channel when the queue is empty.",
         })
       );
     }
@@ -71,8 +71,8 @@ export default {
 
     await interaction.reply(
       successMessage({
-        title: "Mode 24/7 activé",
-        description: `Je resterai connecté à **${channel?.name ?? "ce salon"}** en permanence.\nUtilise \`/247\` à nouveau pour désactiver.`,
+        title: "24/7 Mode Enabled",
+        description: `I will stay connected to **${channel?.name ?? "this channel"}** permanently.\nUse \`/247\` again to disable.`,
       })
     );
   },
