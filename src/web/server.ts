@@ -375,6 +375,22 @@ export function startWebServer(client: Bot, port: number = 3000): { app: ReturnT
           }
         }
 
+        // Add to Todo database
+        try {
+          await client.db.todo.create({
+            data: {
+              guildId: data.guildId,
+              title: `[Escalation] ${ticketTitle}`,
+              description: data.reason,
+              priority: data.level === "critical" ? "urgent" : data.level === "high" ? "high" : "normal",
+              assigneeId: teamMember ? teamMember.userId : null,
+              fromTicketId: ticket ? ticket.id : null,
+            }
+          });
+        } catch (err) {
+          logger.error(`Failed to create Todo for escalation in ${data.channelId}:`, err);
+        }
+
         callback({ success: true });
       } catch (err: any) {
         callback({ success: false, error: err.message });
