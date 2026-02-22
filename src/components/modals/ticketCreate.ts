@@ -27,7 +27,7 @@ export default {
     if (existingTicket) {
       return interaction.editReply(
         errorMessage({
-          description: `Tu as déjà un ticket ouvert: <#${existingTicket.channelId}>`,
+          description: `You already have an open ticket: <#${existingTicket.channelId}>`,
         })
       );
     }
@@ -42,14 +42,14 @@ export default {
     if (!channel) {
       return interaction.editReply(
         errorMessage({
-          description: "Impossible de créer le ticket. Le système n'est peut-être pas configuré.",
+          description: "Unable to create the ticket. The system may not be configured.",
         })
       );
     }
 
     await interaction.editReply(
       successMessage({
-        description: `Ton ticket a été créé: ${channel.toString()}`,
+        description: `Your ticket has been created: ${channel.toString()}`,
       })
     );
   },
