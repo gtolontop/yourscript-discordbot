@@ -6,7 +6,7 @@ export function guildDashboardPage(user: any, guildId: string): string {
     : "https://cdn.discordapp.com/embed/avatars/0.png";
 
   return `<!DOCTYPE html>
-<html lang="fr"><head>
+<html lang="en"><head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -366,16 +366,16 @@ function getEmbedPageHtml(): string {
         <div>
           <div class="card">
             <h2>Message Builder</h2>
-            <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 20px;">Components V2 - Le nouveau format Discord</p>
+            <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 20px;">Components V2 - The new Discord message format</p>
 
             <div class="form-group">
-              <label>Titre</label>
-              <input type="text" id="msg-title" placeholder="Titre du message" oninput="updatePreview()">
+              <label>Title</label>
+              <input type="text" id="msg-title" placeholder="Message title" oninput="updatePreview()">
             </div>
 
             <div class="form-group">
               <label>Description</label>
-              <textarea id="msg-desc" rows="5" placeholder="Contenu du message (supporte **gras**, *italique*, -# petit texte)" oninput="updatePreview()"></textarea>
+              <textarea id="msg-desc" rows="5" placeholder="Message content (supports **bold**, *italic*, -# small text)" oninput="updatePreview()"></textarea>
             </div>
 
             <div class="form-group">
@@ -384,37 +384,37 @@ function getEmbedPageHtml(): string {
             </div>
 
             <div class="form-group">
-              <label>Image URL (optionnel)</label>
+              <label>Image URL (optional)</label>
               <input type="url" id="msg-image" placeholder="https://..." oninput="updatePreview()">
             </div>
 
             <div class="form-group">
-              <label>Footer (optionnel)</label>
-              <input type="text" id="msg-footer" placeholder="Petit texte en bas" oninput="updatePreview()">
+              <label>Footer (optional)</label>
+              <input type="text" id="msg-footer" placeholder="Small text at the bottom" oninput="updatePreview()">
             </div>
 
             <div class="form-group">
-              <label>Boutons</label>
+              <label>Buttons</label>
               <div id="buttons-list"></div>
-              <button class="btn btn-secondary btn-sm" onclick="addButton()">+ Ajouter un bouton</button>
+              <button class="btn btn-secondary btn-sm" onclick="addButton()">+ Add a button</button>
             </div>
           </div>
 
           <div class="card" style="margin-top: 16px;">
-            <h2>Envoyer</h2>
+            <h2>Send</h2>
             <div class="form-group">
               <label>Channel</label>
               <select id="msg-channel"></select>
             </div>
-            <button class="btn btn-primary" onclick="sendMessage()">Envoyer</button>
+            <button class="btn btn-primary" onclick="sendMessage()">Send</button>
           </div>
         </div>
 
         <div class="embed-preview-container">
           <div class="card">
-            <h2>Aperçu</h2>
+            <h2>Preview</h2>
             <div class="discord-embed" id="msg-preview">
-              <div style="color: var(--text-muted);">Commence à écrire...</div>
+              <div style="color: var(--text-muted);">Start writing...</div>
             </div>
           </div>
         </div>
@@ -829,7 +829,7 @@ function updatePreview() {
     html += '</div>';
   }
 
-  if (!html) html = '<div style="color: var(--text-muted);">Commence à écrire...</div>';
+  if (!html) html = '<div style="color: var(--text-muted);">Start writing...</div>';
 
   const preview = document.getElementById('msg-preview');
   if (preview) {
@@ -855,7 +855,7 @@ function renderButtons() {
         '<option ' + (b.style==='Success'?'selected':'') + '>Success</option>' +
         '<option ' + (b.style==='Danger'?'selected':'') + '>Danger</option>' +
       '</select>' +
-      '<input type="url" value="' + (b.url||'') + '" placeholder="URL (optionnel)" style="width:180px" onchange="msgButtons[' + i + '].url=this.value">' +
+      '<input type="url" value="' + (b.url||'') + '" placeholder="URL (optional)" style="width:180px" onchange="msgButtons[' + i + '].url=this.value">' +
       '<button class="btn btn-danger btn-sm" onclick="msgButtons.splice(' + i + ',1);renderButtons()">×</button>' +
     '</div>'
   ).join('');
@@ -864,7 +864,7 @@ function renderButtons() {
 
 async function sendMessage() {
   const channelId = document.getElementById('msg-channel')?.value;
-  if (!channelId) return showToast('Sélectionne un channel', 'error');
+  if (!channelId) return showToast('Select a channel', 'error');
 
   const data = {
     channelId,
@@ -882,8 +882,8 @@ async function sendMessage() {
     body: JSON.stringify(data)
   });
 
-  if (res.ok) showToast('Message envoyé!', 'success');
-  else showToast('Erreur', 'error');
+  if (res.ok) showToast('Message sent!', 'success');
+  else showToast('Error', 'error');
 }
 
 // Config
