@@ -24,11 +24,6 @@ export default {
       });
     }
 
-    await interaction.reply({
-      ...successMessage({ description: "Thanks for your review! Closing the ticket..." }),
-      ephemeral: true,
-    });
-
     const ratingStr = interaction.fields.getTextInputValue("rating");
     const review = interaction.fields.getTextInputValue("review");
 
@@ -51,6 +46,11 @@ export default {
         ephemeral: true,
       });
     }
+
+    await interaction.reply({
+      ...successMessage({ description: "Thanks for your review! Closing the ticket..." }),
+      ephemeral: true,
+    });
 
     // Store the review
     await client.db.ticket.update({
