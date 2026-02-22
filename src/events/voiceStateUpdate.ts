@@ -2,6 +2,7 @@ import { VoiceState } from "discord.js";
 import { joinVoiceChannel } from "@discordjs/voice";
 import type { Event } from "../types/index.js";
 import { LogService } from "../services/LogService.js";
+import { logger } from "../utils/index.js";
 
 const event: Event<"voiceStateUpdate"> = {
   name: "voiceStateUpdate",
@@ -38,23 +39,65 @@ const event: Event<"voiceStateUpdate"> = {
           }, 1000);
         }
       }
-      return; // Don't log bot's own voice changes
+      return;
     }
 
-    // Log user voice state changes
     const logService = new LogService(client);
 
     // User joined a voice channel
     if (!oldState.channelId && newState.channelId) {
+      logger.event(`Voice joined: ${member.user.tag} -> #${newState.channel?.name} | ${member.guild.name}`);
       await logService.logVoiceJoin(member, newState.channel);
+      return;
     }
+
     // User left a voice channel
-    else if (oldState.channelId && !newState.channelId) {
+    if (oldState.channelId && !newState.channelId) {
+      logger.event(`Voice left: ${member.user.tag} <- #${oldState.channel?.name} | ${member.guild.name}`);
       await logService.logVoiceLeave(member, oldState.channel);
+      return;
     }
+
     // User moved between voice channels
-    else if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
+    if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
+      logger.event(`Voice moved: ${member.user.tag} #${oldState.channel?.name} -> #${newState.channel?.name} | ${member.guild.name}`);
       await logService.logVoiceMove(member, oldState.channel, newState.channel);
+    }
+
+    // Server mute change
+    if (oldState.serverMute !== newState.serverMute) {
+      logger.event(`Voice server ${newState.serverMute ? "muted" : "unmuted"}: ${member.user.tag} | ${member.guild.name}`);
+      await logService.logVoiceServerMute(member, newState.serverMute ?? false);
+    }
+
+    // Server deafen change
+    if (oldState.serverDeaf !== newState.serverDeaf) {
+      logger.event(`Voice server ${newState.serverDeaf ? "deafened" : "undeafened"}: ${member.user.tag} | ${member.guild.name}`);
+      await logService.logVoiceServerDeafen(member, newState.serverDeaf ?? false);
+    }
+
+    // Self mute change
+    if (oldState.selfMute !== newState.selfMute) {
+      logger.event(`Voice self ${newState.selfMute ? "muted" : "unmuted"}: ${member.user.tag} | ${member.guild.name}`);
+      await logService.logVoiceSelfMute(member, newState.selfMute ?? false);
+    }
+
+    // Self deafen change
+    if (oldState.selfDeaf !== newState.selfDeaf) {
+      logger.event(`Voice self ${newState.selfDeaf ? "deafened" : "undeafened"}: ${member.user.tag} | ${member.guild.name}`);
+      await logService.logVoiceSelfDeafen(member, newState.selfDeaf ?? false);
+    }
+
+    // Streaming change
+    if (oldState.streaming !== newState.streaming) {
+      logger.event(`Voice ${newState.streaming ? "started streaming" : "stopped streaming"}: ${member.user.tag} | ${member.guild.name}`);
+      await logService.logVoiceStream(member, newState.streaming ?? false);
+    }
+
+    // Camera change
+    if (oldState.selfVideo !== newState.selfVideo) {
+      logger.event(`Voice camera ${newState.selfVideo ? "on" : "off"}: ${member.user.tag} | ${member.guild.name}`);
+      await logService.logVoiceCamera(member, newState.selfVideo ?? false);
     }
   },
 };
