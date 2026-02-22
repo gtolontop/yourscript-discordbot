@@ -258,6 +258,34 @@ export function startWebServer(client: Bot, port: number = 3000): { app: ReturnT
       }
     });
 
+    socket.on("action:askInfo" as any, async (data: any, callback: any) => {
+      try {
+        const channel = client.channels.cache.get(data.channelId);
+        if (!channel?.isTextBased() || channel.isDMBased()) {
+          return callback({ success: false, error: "Channel not found" });
+        }
+        const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = await import("discord.js");
+        const embed = new EmbedBuilder()
+          .setTitle("📋 Informations requises")
+          .setDescription("Afin de mieux traiter votre demande, merci de bien vouloir nous fournir quelques informations supplémentaires en cliquant sur le bouton ci-dessous.\n\n*(Sujet de la demande, Site web, YouTube, Membres...)*")
+          .setColor(0x5865f2)
+          .setFooter({ text: "Formulaire de renseignements" });
+          
+        const row = new ActionRowBuilder<any>().addComponents(
+          new ButtonBuilder()
+            .setCustomId("askinfo_btn_none")
+            .setLabel("Fournir les informations")
+            .setEmoji("📝")
+            .setStyle(ButtonStyle.Primary)
+        );
+        
+        await (channel as any).send({ embeds: [embed], components: [row] });
+        callback({ success: true });
+      } catch (err: any) {
+        callback({ success: false, error: err.message });
+      }
+    });
+
     socket.on("action:addTodo" as any, async (data: any, callback: any) => {
       try {
         const todo = await client.db.todo.create({
