@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, GuildMember, ChannelType, type VoiceBasedChannel } from "discord.js";
 import { useMainPlayer } from "discord-player";
 import type { Command } from "../../types/index.js";
-import { createMessage, errorMessage } from "../../utils/index.js";
+import { createMessage, errorMessage, logger } from "../../utils/index.js";
 
 export default {
   data: new SlashCommandBuilder()
@@ -64,7 +64,7 @@ export default {
         })
       );
     } catch (error) {
-      console.error(error);
+      logger.error(`/play failed in ${interaction.guild?.name}:`, error);
       await interaction.editReply(
         errorMessage({ description: "Impossible de jouer cette musique." })
       );
