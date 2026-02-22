@@ -7,10 +7,10 @@ import { canModerate, botCanModerate } from "../../utils/permissions.js";
 export default {
   data: new SlashCommandBuilder()
     .setName("unmute")
-    .setDescription("Unmute un utilisateur")
+    .setDescription("Unmute a user")
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .addUserOption((opt) =>
-      opt.setName("user").setDescription("L'utilisateur à unmute").setRequired(true)
+      opt.setName("user").setDescription("The user to unmute").setRequired(true)
     ),
 
   async execute(interaction, client) {
@@ -20,28 +20,28 @@ export default {
 
     if (!targetMember) {
       return interaction.reply({
-        ...errorMessage({ description: "Cet utilisateur n'est pas sur le serveur." }),
+        ...errorMessage({ description: "This user is not on the server." }),
         ephemeral: true,
       });
     }
 
     if (!targetMember.isCommunicationDisabled()) {
       return interaction.reply({
-        ...errorMessage({ description: "Cet utilisateur n'est pas mute." }),
+        ...errorMessage({ description: "This user is not muted." }),
         ephemeral: true,
       });
     }
 
     if (!canModerate(member, targetMember)) {
       return interaction.reply({
-        ...errorMessage({ description: "Tu ne peux pas unmute cet utilisateur (hiérarchie des rôles)." }),
+        ...errorMessage({ description: "You cannot unmute this user (role hierarchy)." }),
         ephemeral: true,
       });
     }
 
     if (!botCanModerate(targetMember)) {
       return interaction.reply({
-        ...errorMessage({ description: "Je ne peux pas unmute cet utilisateur (hiérarchie des rôles)." }),
+        ...errorMessage({ description: "I cannot unmute this user (role hierarchy)." }),
         ephemeral: true,
       });
     }
@@ -54,13 +54,13 @@ export default {
 
       await interaction.reply(
         successMessage({
-          title: "Utilisateur unmute",
-          description: `**${target.tag}** a été unmute.`,
+          title: "User Unmuted",
+          description: `**${target.tag}** has been unmuted.`,
         })
       );
     } catch (error) {
       await interaction.reply({
-        ...errorMessage({ description: "Impossible d'unmute cet utilisateur." }),
+        ...errorMessage({ description: "Unable to unmute this user." }),
         ephemeral: true,
       });
     }
