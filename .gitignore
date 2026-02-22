@@ -1,35 +1,33 @@
 # Dependencies
 node_modules/
+target/
 
 # Build output
 dist/
+*.exe
 
-# Environment variables
+# Environment
 .env
-.env.local
-.env.*.local
 
 # Database
 *.db
-*.db-journal
-prisma/dev.db
+*.db-wal
+*.db-shm
+data/
 
 # IDE
-.idea/
 .vscode/
+.idea/
 *.swp
-*.swo
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Logs
-logs/
-*.log
-npm-debug.log*
-pnpm-debug.log*
+# Temporary
+tmpclaude-*
+*.rar
 
-# Cache
-.cache/
-*.tsbuildinfo
+# Logs
+*.log
+nul
