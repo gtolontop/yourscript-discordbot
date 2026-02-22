@@ -39,13 +39,13 @@ const MODEL_TABLE: Record<TaskType, ModelConfig> = {
     rpd: 10000,
   },
   conversation: {
-    model: "deepseek/deepseek-v3.2",
+    model: "deepseek/deepseek-chat",
     fallback: "meta-llama/llama-3.3-70b-instruct",
     rpm: 200,
     rpd: 10000,
   },
   complex_analysis: {
-    model: "deepseek/deepseek-v3.2",
+    model: "deepseek/deepseek-chat",
     fallback: "x-ai/grok-4.1-fast",
     rpm: 200,
     rpd: 10000,
@@ -68,7 +68,7 @@ const MODEL_TABLE: Record<TaskType, ModelConfig> = {
     rpd: 50000,
   },
   dm_conversation: {
-    model: "deepseek/deepseek-v3.2",
+    model: "deepseek/deepseek-chat",
     fallback: "meta-llama/llama-3.3-70b-instruct",
     rpm: 200,
     rpd: 10000,
@@ -113,7 +113,7 @@ export class ModelRouter {
 
   getModel(taskType: TaskType): string {
     const config = MODEL_TABLE[taskType];
-    if (!config) return "deepseek/deepseek-v3.2";
+    if (!config) return "deepseek/deepseek-chat";
 
     // Check if primary model is available (not hard-banned and within soft limits)
     if (!this.isHardBanned(config.model) && this.isAvailable(config.model, config.rpm, config.rpd)) {
