@@ -4,6 +4,7 @@ import { readdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import type { Command } from "./types/index.js";
+import { logger } from "./utils/index.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -25,31 +26,38 @@ async function deployCommands() {
 
       if (command?.data) {
         commands.push(command.data.toJSON());
-        console.log(`✓ Loaded command: ${command.data.name}`);
+        logger.info(`Loaded command: ${command.data.name}`);
       }
     }
   }
 
   const token = process.env["DISCORD_TOKEN"];
   const clientId = process.env["CLIENT_ID"];
+  const guildId = process.env["GUILD_ID"];
 
   if (!token || !clientId) {
-    console.error("Missing DISCORD_TOKEN or CLIENT_ID in environment variables");
+    logger.error("Missing DISCORD_TOKEN or CLIENT_ID in environment variables");
     process.exit(1);
   }
 
   const rest = new REST().setToken(token);
 
   try {
-    console.log(`\nDeploying ${commands.length} commands globally...`);
-
-    await rest.put(Routes.applicationCommands(clientId), {
-      body: commands,
-    });
-
-    console.log("✓ Commands deployed globally (peut prendre quelques minutes pour apparaître)");
+    if (guildId) {
+      logger.info(`Deploying ${commands.length} commands to guild ${guildId}...`);
+      await rest.put(Routes.applicationGuildCommands(clientId, guildId), {
+        body: commands,
+      });
+      logger.info("Commands deployed to guild (instant)");
+    } else {
+      logger.info(`Deploying ${commands.length} commands globally...`);
+      await rest.put(Routes.applicationCommands(clientId), {
+        body: commands,
+      });
+      logger.info("Commands deployed globally (may take a few minutes to appear)");
+    }
   } catch (error) {
-    console.error("Failed to deploy commands:", error);
+    logger.error("Failed to deploy commands:", error);
     process.exit(1);
   }
 }
