@@ -7,25 +7,25 @@ import { canModerate, botCanModerate } from "../../utils/permissions.js";
 export default {
   data: new SlashCommandBuilder()
     .setName("ban")
-    .setDescription("Bannit un utilisateur du serveur")
+    .setDescription("Ban a user from the server")
     .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
     .addUserOption((opt) =>
-      opt.setName("user").setDescription("L'utilisateur à bannir").setRequired(true)
+      opt.setName("user").setDescription("The user to ban").setRequired(true)
     )
     .addStringOption((opt) =>
-      opt.setName("raison").setDescription("Raison du bannissement")
+      opt.setName("raison").setDescription("Reason for the ban")
     )
     .addIntegerOption((opt) =>
       opt
         .setName("delete_messages")
-        .setDescription("Supprimer les messages des X derniers jours")
+        .setDescription("Delete messages from the last X days")
         .setMinValue(0)
         .setMaxValue(7)
     ),
 
   async execute(interaction, client) {
     const target = interaction.options.getUser("user", true);
-    const reason = interaction.options.getString("raison") ?? "Aucune raison fournie";
+    const reason = interaction.options.getString("raison") ?? "No reason provided";
     const deleteMessages = interaction.options.getInteger("delete_messages") ?? 0;
     const member = interaction.member as GuildMember;
     const targetMember = interaction.guild?.members.cache.get(target.id);
@@ -34,14 +34,14 @@ export default {
     if (targetMember) {
       if (!canModerate(member, targetMember)) {
         return interaction.reply({
-          ...errorMessage({ description: "Tu ne peux pas bannir cet utilisateur (hiérarchie des rôles)." }),
+          ...errorMessage({ description: "You cannot ban this user (role hierarchy)." }),
           ephemeral: true,
         });
       }
 
       if (!botCanModerate(targetMember)) {
         return interaction.reply({
-          ...errorMessage({ description: "Je ne peux pas bannir cet utilisateur (hiérarchie des rôles)." }),
+          ...errorMessage({ description: "I cannot ban this user (role hierarchy)." }),
           ephemeral: true,
         });
       }
@@ -49,7 +49,7 @@ export default {
 
     try {
       await interaction.guild?.members.ban(target, {
-        reason: `${reason} | Par ${interaction.user.tag}`,
+        reason: `${reason} | By ${interaction.user.tag}`,
         deleteMessageSeconds: deleteMessages * 24 * 60 * 60,
       });
 
@@ -59,13 +59,13 @@ export default {
 
       await interaction.reply(
         successMessage({
-          title: "Utilisateur banni",
-          description: `**${target.tag}** a été banni.\n**Raison:** ${reason}`,
+          title: "User Banned",
+          description: `**${target.tag}** has been banned.\n**Reason:** ${reason}`,
         })
       );
     } catch (error) {
       await interaction.reply({
-        ...errorMessage({ description: "Impossible de bannir cet utilisateur." }),
+        ...errorMessage({ description: "Unable to ban this user." }),
         ephemeral: true,
       });
     }
