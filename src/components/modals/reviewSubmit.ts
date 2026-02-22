@@ -14,12 +14,12 @@ export default {
   async execute(interaction, client) {
     // Extract ticket ID and guild ID from customId (review_submit_123_456)
     const parts = interaction.customId.split("_");
-    const ticketId = parseInt(parts[2]);
+    const ticketId = parseInt(parts[2]!);
     const guildId = parts[3];
 
     if (isNaN(ticketId) || !guildId) {
       return interaction.reply({
-        ...errorMessage({ description: "Données invalides." }),
+        ...errorMessage({ description: "Invalid data." }),
         ephemeral: true,
       });
     }
@@ -31,7 +31,7 @@ export default {
     const rating = parseInt(ratingStr);
     if (isNaN(rating) || rating < 1 || rating > 5) {
       return interaction.reply({
-        ...errorMessage({ description: "La note doit être un nombre entre 1 et 5." }),
+        ...errorMessage({ description: "The rating must be a number between 1 and 5." }),
         ephemeral: true,
       });
     }
@@ -43,7 +43,7 @@ export default {
 
     if (!ticket) {
       return interaction.reply({
-        ...errorMessage({ description: "Ticket introuvable." }),
+        ...errorMessage({ description: "Ticket not found." }),
         ephemeral: true,
       });
     }
@@ -66,10 +66,10 @@ export default {
         const stars = "⭐".repeat(rating) + "☆".repeat(5 - rating);
 
         const reviewEmbed = new EmbedBuilder()
-          .setTitle(`⭐ Avis reçu - Ticket #${ticket.number.toString().padStart(4, "0")}`)
+          .setTitle(`⭐ Review Received - Ticket #${ticket.number.toString().padStart(4, "0")}`)
           .setDescription([
-            `**De:** ${interaction.user.tag} (<@${interaction.user.id}>)`,
-            `**Note:** ${stars}`,
+            `**From:** ${interaction.user.tag} (<@${interaction.user.id}>)`,
+            `**Rating:** ${stars}`,
             "",
             `> ${review}`,
           ].join("\n"))
@@ -79,12 +79,12 @@ export default {
         const approvalButtons = new ActionRowBuilder<ButtonBuilder>().addComponents(
           new ButtonBuilder()
             .setCustomId(`review_accept_${ticket.id}`)
-            .setLabel("Accepter")
+            .setLabel("Accept")
             .setStyle(ButtonStyle.Success)
             .setEmoji("✅"),
           new ButtonBuilder()
             .setCustomId(`review_refuse_${ticket.id}`)
-            .setLabel("Refuser")
+            .setLabel("Decline")
             .setStyle(ButtonStyle.Danger)
             .setEmoji("❌")
         );
@@ -96,10 +96,21 @@ export default {
       }
     }
 
+    // Emit review:submitted to AI namespace
+    if (client.aiNamespace) {
+      client.aiNamespace.emit("review:submitted", {
+        ticketId,
+        guildId: guildId!,
+        userId: interaction.user.id,
+        rating,
+        review,
+      });
+    }
+
     // Reply to the user
     await interaction.reply(
       successMessage({
-        description: "Merci pour ton avis ! Il sera examiné par le staff.",
+        description: "Thank you for your feedback! It will be reviewed by the staff.",
       })
     );
   },
