@@ -1,5 +1,5 @@
 {
-  "name": "yorkdev-bot",
+  "name": "your-script-bot",
   "version": "1.0.0",
   "description": "Discord bot with moderation, levels, economy and music",
   "type": "module",
