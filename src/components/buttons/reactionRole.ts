@@ -11,7 +11,7 @@ export default {
     const member = interaction.guild?.members.cache.get(interaction.user.id);
     if (!member) {
       return interaction.reply({
-        ...errorMessage({ description: "Impossible de trouver ton profil membre." }),
+        ...errorMessage({ description: "Unable to find your member profile." }),
         ephemeral: true,
       });
     }
@@ -19,7 +19,7 @@ export default {
     const role = interaction.guild?.roles.cache.get(roleId);
     if (!role) {
       return interaction.reply({
-        ...errorMessage({ description: "Ce rôle n'existe plus." }),
+        ...errorMessage({ description: "This role no longer exists." }),
         ephemeral: true,
       });
     }
@@ -28,7 +28,7 @@ export default {
     const botMember = interaction.guild?.members.me;
     if (!botMember || botMember.roles.highest.position <= role.position) {
       return interaction.reply({
-        ...errorMessage({ description: "Je ne peux pas gérer ce rôle (position trop haute)." }),
+        ...errorMessage({ description: "I cannot manage this role (position too high)." }),
         ephemeral: true,
       });
     }
@@ -38,20 +38,20 @@ export default {
         // Remove role
         await member.roles.remove(roleId);
         return interaction.reply({
-          content: `❌ Rôle ${role.toString()} retiré.`,
+          content: `❌ Role ${role.toString()} removed.`,
           ephemeral: true,
         });
       } else {
         // Add role
         await member.roles.add(roleId);
         return interaction.reply({
-          content: `✅ Rôle ${role.toString()} ajouté !`,
+          content: `✅ Role ${role.toString()} added!`,
           ephemeral: true,
         });
       }
     } catch (error) {
       return interaction.reply({
-        ...errorMessage({ description: "Impossible de modifier tes rôles." }),
+        ...errorMessage({ description: "Unable to modify your roles." }),
         ephemeral: true,
       });
     }
