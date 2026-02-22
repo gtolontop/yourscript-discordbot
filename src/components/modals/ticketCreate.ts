@@ -1,6 +1,6 @@
 import type { ModalComponent } from "../../types/index.js";
 import { TicketService } from "../../services/TicketService.js";
-import { errorMessage, successMessage } from "../../utils/index.js";
+import { errorMessage, successMessage, logger } from "../../utils/index.js";
 
 export default {
   customId: /^ticket_create_modal/,
