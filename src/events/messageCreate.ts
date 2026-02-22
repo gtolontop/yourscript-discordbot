@@ -1,6 +1,7 @@
 import { Events, type Message } from "discord.js";
 import type { Event } from "../types/index.js";
 import { TicketService } from "../services/TicketService.js";
+import { XpService } from "../services/XpService.js";
 
 export default {
   name: Events.MessageCreate,
@@ -58,6 +59,10 @@ export default {
         });
       }
     }
+
+    // Process XP
+    const xpService = new XpService(client as any);
+    await xpService.handleMessage(message);
 
     // Detect staff replies in DM log threads → relay to selfbot
     if (client.aiNamespace && message.channel.isThread() && message.content) {
