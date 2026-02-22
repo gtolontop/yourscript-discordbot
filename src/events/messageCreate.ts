@@ -8,6 +8,28 @@ export default {
     // Ignore DMs and bots
     if (!message.guild || message.author.bot) return;
 
+    // Fetch config once
+    const config = await client.db.guild.findUnique({ where: { id: message.guild.id } }) as any;
+
+    // Anti-Scam Check
+    if (config?.antiScamEnabled && message.content) {
+      // Basic scam heuristics
+      const scamRegex = /(discoord|dlscord|discord-nitro|free\s*nitro|steamcommunity-|steam-promo|discord\.gift)/i;
+      if (scamRegex.test(message.content)) {
+        const isStaff = config.ticketSupportRole
+          ? message.member?.roles.cache.has(config.ticketSupportRole)
+          : message.member?.permissions.has("ManageMessages");
+
+        if (!isStaff) {
+          try {
+            await message.delete();
+            await message.author.send("⚠️ Your message was deleted by the Anti-Scam filter.").catch(() => {});
+            return; // Stop processing
+          } catch {}
+        }
+      }
+    }
+
     // Update ticket last activity if message is in a ticket channel
     const ticket = await client.db.ticket.findUnique({
       where: { channelId: message.channelId },

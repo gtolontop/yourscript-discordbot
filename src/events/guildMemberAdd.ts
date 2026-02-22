@@ -17,7 +17,41 @@ const event: Event<"guildMemberAdd"> = {
     // Fetch config once
     const config = await client.db.guild.findUnique({
       where: { id: guildId },
-    });
+    }) as any;
+
+    // Anti-Raid Mode
+    if (config?.antiRaidEnabled) {
+      try {
+        await member.kick("Anti-Raid Mode is currently active.");
+        logger.warn(`Anti-Raid: Kicked ${member.user.tag}`);
+        return; // Stop further processing
+      } catch (err) {
+        logger.warn(`Failed to kick ${member.user.tag} during Anti-Raid.`);
+      }
+    }
+
+    // Alt-Account Flagging
+    if (config?.altFlaggingEnabled && config?.modLogsChannel) {
+      const isNewAccount = (Date.now() - member.user.createdTimestamp) < 24 * 60 * 60 * 1000;
+      const isDefaultAvatar = member.user.avatar === null;
+
+      if (isNewAccount || isDefaultAvatar) {
+        const modChannel = member.guild.channels.cache.get(config.modLogsChannel) as TextChannel;
+        if (modChannel && 'send' in modChannel) {
+          const warnEmbed = new EmbedBuilder()
+            .setTitle("⚠️ Suspicious Account Joined")
+            .setDescription(`${member.user.toString()} (\`${member.id}\`) joined the server.`)
+            .addFields(
+              { name: "Account Created", value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`, inline: true },
+              { name: "Default Avatar", value: isDefaultAvatar ? "Yes" : "No", inline: true }
+            )
+            .setColor(Colors.Warning)
+            .setTimestamp();
+          
+          await modChannel.send({ embeds: [warnEmbed] }).catch(() => {});
+        }
+      }
+    }
 
     // Auto-roles
     try {
