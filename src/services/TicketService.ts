@@ -901,6 +901,7 @@ export class TicketService {
     if (!publicChannel) return false;
 
     const user = await this.client.users.fetch(ticket.userId).catch(() => null);
+    const stars = "⭐".repeat(rating) + "☆".repeat(5 - rating);
     const aiSummary = await this.client.db.ticketSummary.findUnique({
       where: { ticketId: ticket.id },
     }).catch(() => null);
