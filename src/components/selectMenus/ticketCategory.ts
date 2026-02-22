@@ -35,8 +35,36 @@ export default {
       .setRequired(required)
       .setMaxLength(100);
 
-    const row = new ActionRowBuilder<TextInputBuilder>().addComponents(subjectInput);
-    modal.addComponents(row);
+    const usernameInput = new TextInputBuilder()
+      .setCustomId("username")
+      .setLabel("Ingame / Tebex Username")
+      .setPlaceholder("e.g. john_doe")
+      .setStyle(TextInputStyle.Short)
+      .setRequired(false)
+      .setMaxLength(50);
+
+    const ipInput = new TextInputBuilder()
+      .setCustomId("server_ip")
+      .setLabel("Game Server IP (if applicable)")
+      .setPlaceholder("127.0.0.1:30120")
+      .setStyle(TextInputStyle.Short)
+      .setRequired(false)
+      .setMaxLength(50);
+
+    const descInput = new TextInputBuilder()
+      .setCustomId("description")
+      .setLabel("Description of your issue")
+      .setPlaceholder("Please describe your issue in detail...")
+      .setStyle(TextInputStyle.Paragraph)
+      .setRequired(true)
+      .setMaxLength(1000);
+
+    modal.addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(subjectInput),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(usernameInput),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(ipInput),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(descInput)
+    );
 
     await interaction.showModal(modal);
   },
