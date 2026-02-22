@@ -90,6 +90,7 @@ export class ActionParser {
       '- escalate: needs human. Data: { "reason": "...", "specialtyNeeded": "developer|designer|manager|support" }',
       '  The reason MUST be professional and neutral. NOT "Model indicated X" but "Client is asking for X which requires manual approval".',
       '- close: ticket/conversation should close. Data: { "reason": "resolved" }',
+      '  MUST trigger this if the AI response indicates the issue is resolved (e.g. "glad it worked", "n\'hésite pas si besoin").',
       "",
       "CONVERSATION:",
       conversationSnippet,

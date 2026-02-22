@@ -774,6 +774,19 @@ export class TicketHandler {
             await this.handleEscalation(data, lang, escalateData.reason, escalateData.specialtyNeeded, alreadyAwaitingTeam);
             break;
           }
+          case "close": {
+            logger.ai(`AI decided to close the ticket in ${data.channelId}`);
+            try {
+              await this.bridge.requestClose({
+                channelId: data.channelId,
+                guildId: data.guildId,
+                userId: data.userId,
+              });
+            } catch (err) {
+              logger.error(`Failed to request close for AI action in ${data.channelId}:`, err);
+            }
+            break;
+          }
         }
       }
     } catch (err) {
