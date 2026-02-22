@@ -14,10 +14,10 @@ import { ModerationService } from "../../services/ModerationService.js";
 export default {
   data: new SlashCommandBuilder()
     .setName("warns")
-    .setDescription("Voir les avertissements d'un utilisateur")
+    .setDescription("View a user's warnings")
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .addUserOption((opt) =>
-      opt.setName("user").setDescription("L'utilisateur").setRequired(true)
+      opt.setName("user").setDescription("The user").setRequired(true)
     ),
 
   async execute(interaction, client) {
@@ -29,8 +29,8 @@ export default {
     if (warns.length === 0) {
       return interaction.reply({
         ...errorMessage({
-          title: "Aucun avertissement",
-          description: `**${target.tag}** n'a aucun avertissement.`,
+          title: "No Warnings",
+          description: `**${target.tag}** has no warnings.`,
         }),
         ephemeral: true,
       });
@@ -39,27 +39,27 @@ export default {
     const container = new ContainerBuilder()
       .setAccentColor(Colors.Warning)
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`## Avertissements de ${target.tag}`)
+        new TextDisplayBuilder().setContent(`## Warnings for ${target.tag}`)
       )
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`**Total:** ${warns.length} warn(s)`)
+        new TextDisplayBuilder().setContent(`**Total:** ${warns.length} warning(s)`)
       )
       .addSeparatorComponents(
         new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
       );
 
     for (const warn of warns.slice(0, 10)) {
-      const date = warn.createdAt.toLocaleDateString("fr-FR");
+      const date = warn.createdAt.toLocaleDateString("en-US");
       container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
-          `**#${warn.id}** - ${date}\n${warn.reason}\n-# Par <@${warn.moderator}>`
+          `**#${warn.id}** - ${date}\n${warn.reason}\n-# Par <@${warn.odByModId}>`
         )
       );
     }
 
     if (warns.length > 10) {
       container.addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`\n*...et ${warns.length - 10} autres*`)
+        new TextDisplayBuilder().setContent(`\n*...and ${warns.length - 10} more*`)
       );
     }
 
