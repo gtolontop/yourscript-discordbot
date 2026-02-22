@@ -3,6 +3,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import type { Bot } from "../client/Bot.js";
 import type { ButtonComponent, ModalComponent, SelectMenuComponent } from "../types/index.js";
+import { logger } from "../utils/index.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -32,11 +33,11 @@ async function loadButtons(client: Bot, basePath: string): Promise<void> {
         ? button.customId.source
         : button.customId;
       client.buttons.set(id, button);
-      console.log(`  ✓ Loaded button: ${id}`);
+      logger.info(`  Loaded button: ${id}`);
     }
   }
 
-  console.log(`✓ Loaded ${client.buttons.size} buttons`);
+  logger.info(`Loaded ${client.buttons.size} buttons`);
 }
 
 async function loadModals(client: Bot, basePath: string): Promise<void> {
@@ -57,11 +58,11 @@ async function loadModals(client: Bot, basePath: string): Promise<void> {
         ? modal.customId.source
         : modal.customId;
       client.modals.set(id, modal);
-      console.log(`  ✓ Loaded modal: ${id}`);
+      logger.info(`  Loaded modal: ${id}`);
     }
   }
 
-  console.log(`✓ Loaded ${client.modals.size} modals`);
+  logger.info(`Loaded ${client.modals.size} modals`);
 }
 
 async function loadSelectMenus(client: Bot, basePath: string): Promise<void> {
@@ -82,9 +83,9 @@ async function loadSelectMenus(client: Bot, basePath: string): Promise<void> {
         ? selectMenu.customId.source
         : selectMenu.customId;
       client.selectMenus.set(id, selectMenu);
-      console.log(`  ✓ Loaded select menu: ${id}`);
+      logger.info(`  Loaded select menu: ${id}`);
     }
   }
 
-  console.log(`✓ Loaded ${client.selectMenus.size} select menus`);
+  logger.info(`Loaded ${client.selectMenus.size} select menus`);
 }
