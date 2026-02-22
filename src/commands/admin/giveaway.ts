@@ -150,7 +150,7 @@ export default {
       });
 
       // Save to DB
-      await client.db.giveaway.create({
+      await (client.db as any).giveaway.create({
         data: {
           guildId,
           channelId: channel.id,
