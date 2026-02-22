@@ -7,57 +7,57 @@ import { canModerate, botCanModerate } from "../../utils/permissions.js";
 export default {
   data: new SlashCommandBuilder()
     .setName("kick")
-    .setDescription("Expulse un utilisateur du serveur")
+    .setDescription("Kick a user from the server")
     .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers)
     .addUserOption((opt) =>
-      opt.setName("user").setDescription("L'utilisateur à expulser").setRequired(true)
+      opt.setName("user").setDescription("The user to kick").setRequired(true)
     )
     .addStringOption((opt) =>
-      opt.setName("raison").setDescription("Raison de l'expulsion")
+      opt.setName("raison").setDescription("Reason for the kick")
     ),
 
   async execute(interaction, client) {
     const target = interaction.options.getUser("user", true);
-    const reason = interaction.options.getString("raison") ?? "Aucune raison fournie";
+    const reason = interaction.options.getString("raison") ?? "No reason provided";
     const member = interaction.member as GuildMember;
     const targetMember = interaction.guild?.members.cache.get(target.id);
 
     if (!targetMember) {
       return interaction.reply({
-        ...errorMessage({ description: "Cet utilisateur n'est pas sur le serveur." }),
+        ...errorMessage({ description: "This user is not on the server." }),
         ephemeral: true,
       });
     }
 
     if (!canModerate(member, targetMember)) {
       return interaction.reply({
-        ...errorMessage({ description: "Tu ne peux pas expulser cet utilisateur (hiérarchie des rôles)." }),
+        ...errorMessage({ description: "You cannot kick this user (role hierarchy)." }),
         ephemeral: true,
       });
     }
 
     if (!botCanModerate(targetMember)) {
       return interaction.reply({
-        ...errorMessage({ description: "Je ne peux pas expulser cet utilisateur (hiérarchie des rôles)." }),
+        ...errorMessage({ description: "I cannot kick this user (role hierarchy)." }),
         ephemeral: true,
       });
     }
 
     try {
-      await targetMember.kick(`${reason} | Par ${interaction.user.tag}`);
+      await targetMember.kick(`${reason} | By ${interaction.user.tag}`);
 
       const modService = new ModerationService(client);
       await modService.logKick(interaction.guild!, target, interaction.user, reason);
 
       await interaction.reply(
         successMessage({
-          title: "Utilisateur expulsé",
-          description: `**${target.tag}** a été expulsé.\n**Raison:** ${reason}`,
+          title: "User Kicked",
+          description: `**${target.tag}** has been kicked.\n**Reason:** ${reason}`,
         })
       );
     } catch (error) {
       await interaction.reply({
-        ...errorMessage({ description: "Impossible d'expulser cet utilisateur." }),
+        ...errorMessage({ description: "Unable to kick this user." }),
         ephemeral: true,
       });
     }
