@@ -125,5 +125,22 @@ export default {
         });
       }
     }
+
+    // Emit review:submitted to AI namespace
+    if (client.aiNamespace) {
+      client.aiNamespace.emit("review:submitted", {
+        ticketId,
+        guildId: guildId!,
+        userId: interaction.user.id,
+        rating,
+        review,
+      });
+    }
+
+    // Thank the user
+    await interaction.reply(
+      successMessage({ description: "Thanks for your review! Closing the ticket..." })
+    );
+
   },
 } satisfies ModalComponent;
