@@ -24,6 +24,11 @@ export default {
       });
     }
 
+    await interaction.reply({
+      ...successMessage({ description: "Thanks for your review! Closing the ticket..." }),
+      ephemeral: true,
+    });
+
     const ratingStr = interaction.fields.getTextInputValue("rating");
     const review = interaction.fields.getTextInputValue("review");
 
@@ -136,11 +141,6 @@ export default {
         review,
       });
     }
-
-    // Thank the user
-    await interaction.reply(
-      successMessage({ description: "Thanks for your review! Closing the ticket..." })
-    );
 
   },
 } satisfies ModalComponent;
