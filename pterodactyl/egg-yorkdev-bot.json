@@ -1,0 +1,144 @@
+{
+    "_comment": "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PTERODACTYL PANEL - PTERODACTYL.IO",
+    "meta": {
+        "version": "PTDL_v1"
+    },
+    "exported_at": "2026-01-15T12:00:00+01:00",
+    "name": "YourScript Discord Bot",
+    "author": "yourscript@local",
+    "description": "Discord bot with moderation, levels, economy, music and web dashboard.\r\n\r\nThis will clone a git repo for the bot. It defaults to main if no branch is specified.\r\n\r\nUses Node.js 20, npm, Prisma (SQLite) and TypeScript.",
+    "image": "ghcr.io/parkervcp/yolks:nodejs_20",
+    "startup": "if [[ -d .git ]] && [[ {{AUTO_UPDATE}} == \"1\" ]]; then git pull; fi && /usr/local/bin/npm install --production && /usr/local/bin/npx prisma generate && /usr/local/bin/npx prisma db push --skip-generate && /usr/local/bin/node /home/container/{{BOT_JS_FILE}}",
+    "config": {
+        "files": "{}",
+        "startup": "{\r\n    \"done\": \"Bot is ready!\"\r\n}",
+        "logs": "{}",
+        "stop": "^C"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!/bin/ash\r\n\r\napk add --no-cache git make gcc g++ python3 curl\r\n\r\ncd /mnt/server\r\n\r\nif [[ ! ${INSTALL_REPO} = *.git ]]; then\r\n  INSTALL_REPO=$(echo -e ${INSTALL_REPO} | sed 's:/*$::')\r\n  INSTALL_REPO=\"${INSTALL_REPO}.git\"\r\nfi\r\n\r\necho -e \"Working on installing YourScript Discord Bot from ${INSTALL_REPO}\"\r\n\r\nif [ \"${USER_UPLOAD}\" == \"true\" ] || [ \"${USER_UPLOAD}\" == \"1\" ]; then\r\n\techo -e \"User upload mode - skipping git clone\"\r\n\tif [ -f package.json ]; then\r\n\t\techo -e \"Installing npm dependencies...\"\r\n\t\t/usr/local/bin/npm install\r\n\t\techo -e \"Building TypeScript...\"\r\n\t\t/usr/local/bin/npm run build || echo \"Build skipped or failed\"\r\n\tfi\r\n\texit 0\r\nelse\r\n\tif [ \"$(ls -A /mnt/server)\" ]; then\r\n\t\techo -e \"/mnt/server directory is not empty.\"\r\n\t\tif [ -d .git ]; then\r\n\t\t\techo -e \".git directory exists\"\r\n\t\t\tif [ -f .git/config ]; then\r\n\t\t\t\techo -e \"Loading info from git config\"\r\n\t\t\t\tORIGIN=$(git config --get remote.origin.url)\r\n\t\t\telse\r\n\t\t\t\techo -e \"Files found with no git config\"\r\n\t\t\t\techo -e \"Closing out without touching things to not break anything\"\r\n\t\t\t\texit 10\r\n\t\t\tfi\r\n\t\tfi\r\n\t\tif [ \"${ORIGIN}\" == \"${INSTALL_REPO}\" ]; then\r\n\t\t\techo \"Pulling latest from git\"\r\n\t\t\tgit pull\r\n\t\t\techo -e \"Installing npm dependencies...\"\r\n\t\t\t/usr/local/bin/npm install\r\n\t\t\techo -e \"Building TypeScript...\"\r\n\t\t\t/usr/local/bin/npm run build || echo \"Build skipped\"\r\n\t\tfi\r\n\telse\r\n\t\techo -e \"/mnt/server is empty.\\nCloning files into repo\"\r\n\t\tif [ -z ${INSTALL_BRANCH} ]; then\r\n\t\t\techo -e \"Assuming main branch\"\r\n\t\t\tINSTALL_BRANCH=main\r\n\t\tfi\r\n\r\n\t\techo -e \"Running 'git clone --single-branch --branch ${INSTALL_BRANCH} ${INSTALL_REPO} .'\"\r\n\t\tgit clone --single-branch --branch ${INSTALL_BRANCH} ${INSTALL_REPO} .\r\n\t\techo -e \"Installing npm dependencies...\"\r\n\t\t/usr/local/bin/npm install\r\n\t\techo -e \"Building TypeScript...\"\r\n\t\t/usr/local/bin/npm run build || echo \"Build skipped\"\r\n\tfi\r\nfi\r\n\r\necho -e \"Installation complete!\"",
+            "container": "node:20-alpine",
+            "entrypoint": "ash"
+        }
+    },
+    "variables": [
+        {
+            "name": "Install Repo",
+            "description": "The git repo to clone and install the bot from",
+            "env_variable": "INSTALL_REPO",
+            "default_value": "",
+            "user_viewable": 1,
+            "user_editable": 1,
+            "rules": "nullable|string|max:128"
+        },
+        {
+            "name": "Install Branch",
+            "description": "The branch of the bot to install (default: main)",
+            "env_variable": "INSTALL_BRANCH",
+            "default_value": "main",
+            "user_viewable": 1,
+            "user_editable": 1,
+            "rules": "nullable|string|max:32"
+        },
+        {
+            "name": "User Uploaded Files",
+            "description": "Skip git clone if you are uploading files manually.\r\n\r\n0 = false (default)\r\n1 = true",
+            "env_variable": "USER_UPLOAD",
+            "default_value": "0",
+            "user_viewable": 1,
+            "user_editable": 1,
+            "rules": "required|boolean"
+        },
+        {
+            "name": "Auto Update",
+            "description": "Pull latest files from git on startup.",
+            "env_variable": "AUTO_UPDATE",
+            "default_value": "0",
+            "user_viewable": 1,
+            "user_editable": 1,
+            "rules": "required|boolean"
+        },
+        {
+            "name": "Bot JS File",
+            "description": "The file that starts the bot (after build).",
+            "env_variable": "BOT_JS_FILE",
+            "default_value": "dist/index.js",
+            "user_viewable": 1,
+            "user_editable": 1,
+            "rules": "required|string"
+        },
+        {
+            "name": "Discord Token",
+            "description": "Your Discord bot token from the Discord Developer Portal",
+            "env_variable": "DISCORD_TOKEN",
+            "default_value": "",
+            "user_viewable": 1,
+            "user_editable": 1,
+            "rules": "required|string"
+        },
+        {
+            "name": "Client ID",
+            "description": "Your Discord application/client ID",
+            "env_variable": "CLIENT_ID",
+            "default_value": "",
+            "user_viewable": 1,
+            "user_editable": 1,
+            "rules": "required|string"
+        },
+        {
+            "name": "Client Secret",
+            "description": "Your Discord client secret (for OAuth2 dashboard)",
+            "env_variable": "CLIENT_SECRET",
+            "default_value": "",
+            "user_viewable": 1,
+            "user_editable": 1,
+            "rules": "nullable|string"
+        },
+        {
+            "name": "Dev Guild ID",
+            "description": "Guild ID for development/testing (optional)",
+            "env_variable": "DEV_GUILD_ID",
+            "default_value": "",
+            "user_viewable": 1,
+            "user_editable": 1,
+            "rules": "nullable|string"
+        },
+        {
+            "name": "Database URL",
+            "description": "SQLite database path",
+            "env_variable": "DATABASE_URL",
+            "default_value": "file:./data/bot.db",
+            "user_viewable": 1,
+            "user_editable": 1,
+            "rules": "required|string"
+        },
+        {
+            "name": "Web Port",
+            "description": "Port for the web dashboard",
+            "env_variable": "WEB_PORT",
+            "default_value": "3000",
+            "user_viewable": 1,
+            "user_editable": 1,
+            "rules": "required|integer"
+        },
+        {
+            "name": "Web URL",
+            "description": "Public URL for the web dashboard",
+            "env_variable": "WEB_URL",
+            "default_value": "http://localhost:3000",
+            "user_viewable": 1,
+            "user_editable": 1,
+            "rules": "required|string"
+        },
+        {
+            "name": "Session Secret",
+            "description": "Secret key for session encryption",
+            "env_variable": "SESSION_SECRET",
+            "default_value": "change-me-to-random-string",
+            "user_viewable": 1,
+            "user_editable": 1,
+            "rules": "required|string"
+        }
+    ]
+}
