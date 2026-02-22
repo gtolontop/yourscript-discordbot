@@ -24,8 +24,8 @@ export default {
       return interaction.reply({
         ...errorMessage({
           description: blacklist.reason
-            ? `Tu es blacklist des tickets.\n**Raison:** ${blacklist.reason}`
-            : "Tu es blacklist des tickets.",
+            ? `You are blacklisted from tickets.\n**Reason:** ${blacklist.reason}`
+            : "You are blacklisted from tickets.",
         }),
         ephemeral: true,
       });
@@ -40,19 +40,19 @@ export default {
       // Show select menu for category selection
       const selectMenu = new StringSelectMenuBuilder()
         .setCustomId("ticket_category_select")
-        .setPlaceholder("Choisis une catégorie...")
+        .setPlaceholder("Choose a category...")
         .addOptions(
           categories.map((cat) => ({
             label: cat.name,
             value: cat.name,
-            description: cat.description || undefined,
-            emoji: cat.emoji || undefined,
+            ...(cat.description && { description: cat.description }),
+            ...(cat.emoji && { emoji: cat.emoji }),
           }))
         );
 
       const embed = new EmbedBuilder()
-        .setTitle("🎫 Créer un ticket")
-        .setDescription("Sélectionne la catégorie de ton ticket ci-dessous.")
+        .setTitle("🎫 Create a Ticket")
+        .setDescription("Select your ticket category below.")
         .setColor(Colors.Primary);
 
       await interaction.reply({
@@ -66,13 +66,13 @@ export default {
         where: { id: guildId },
       });
 
-      const label = config?.ticketModalLabel ?? "Sujet (optionnel)";
-      const placeholder = config?.ticketModalPlaceholder ?? "Décris brièvement ton problème...";
+      const label = config?.ticketModalLabel ?? "Subject (optional)";
+      const placeholder = config?.ticketModalPlaceholder ?? "Briefly describe your issue...";
       const required = config?.ticketModalRequired ?? false;
 
       const modal = new ModalBuilder()
         .setCustomId("ticket_create_modal")
-        .setTitle("Créer un ticket");
+        .setTitle("Create a ticket");
 
       const subjectInput = new TextInputBuilder()
         .setCustomId("subject")
