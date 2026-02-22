@@ -6,7 +6,7 @@ export function homePage(user: any): string {
     : "https://cdn.discordapp.com/embed/avatars/0.png";
 
   return `<!DOCTYPE html>
-<html lang="fr"><head>
+<html lang="en"><head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bot Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -113,7 +113,7 @@ export function dashboardPage(user: any): string {
     : "https://cdn.discordapp.com/embed/avatars/0.png";
 
   return `<!DOCTYPE html>
-<html lang="fr"><head>
+<html lang="en"><head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Select Server - Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -188,7 +188,7 @@ export function transcriptsPage(user: any, transcripts: any[]): string {
     : "https://cdn.discordapp.com/embed/avatars/0.png";
 
   return `<!DOCTYPE html>
-<html lang="fr"><head>
+<html lang="en"><head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>My Transcripts</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -222,7 +222,7 @@ export function transcriptsPage(user: any, transcripts: any[]): string {
           <p>${t.subject || 'No subject'}</p>
           <div class="transcript-meta">
             <span>${t.messageCount} messages</span>
-            <span>${new Date(t.createdAt).toLocaleDateString('fr-FR')}</span>
+            <span>${new Date(t.createdAt).toLocaleDateString('en-US')}</span>
           </div>
         </div>
         <a href="/transcript/${t.id}" class="btn btn-primary btn-sm">View</a>
@@ -234,7 +234,7 @@ export function transcriptsPage(user: any, transcripts: any[]): string {
 
 export function errorPage(code: string, message: string): string {
   return `<!DOCTYPE html>
-<html lang="fr"><head>
+<html lang="en"><head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Error ${code}</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
