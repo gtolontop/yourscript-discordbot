@@ -2,14 +2,22 @@ import { GuildMember, TextChannel, EmbedBuilder } from "discord.js";
 import type { Event } from "../types/index.js";
 import { LogService } from "../services/LogService.js";
 import { Colors } from "../utils/index.js";
+import { logger } from "../utils/index.js";
 
 const event: Event<"guildMemberAdd"> = {
   name: "guildMemberAdd",
   async execute(client, member: GuildMember) {
+    logger.event(`Member joined: ${member.user.tag} (${member.id}) | ${member.guild.name}`);
+
     const logService = new LogService(client);
     await logService.logMemberJoin(member);
 
     const guildId = member.guild.id;
+
+    // Fetch config once
+    const config = await client.db.guild.findUnique({
+      where: { id: guildId },
+    });
 
     // Auto-roles
     try {
@@ -22,15 +30,28 @@ const event: Event<"guildMemberAdd"> = {
         await member.roles.add(roleIds).catch(() => {});
       }
     } catch (error) {
-      console.error("Failed to add auto-roles:", error);
+      logger.error(`Failed to add auto-roles for ${member.user.tag}:`, error);
+    }
+
+    // Ghost ping
+    try {
+      if (config?.ghostPingChannels) {
+        const channelIds: string[] = JSON.parse(config.ghostPingChannels);
+
+        for (const channelId of channelIds) {
+          const channel = member.guild.channels.cache.get(channelId) as TextChannel;
+          if (channel) {
+            const msg = await channel.send(`${member}`);
+            await msg.delete().catch(() => {});
+          }
+        }
+      }
+    } catch (error) {
+      logger.error(`Failed to send ghost pings for ${member.user.tag}:`, error);
     }
 
     // Welcome message
     try {
-      const config = await client.db.guild.findUnique({
-        where: { id: guildId },
-      });
-
       if (config?.welcomeChannel && config?.welcomeMessage) {
         const channel = member.guild.channels.cache.get(config.welcomeChannel) as TextChannel;
         if (channel) {
@@ -58,7 +79,7 @@ const event: Event<"guildMemberAdd"> = {
         }
       }
     } catch (error) {
-      console.error("Failed to send welcome message:", error);
+      logger.error(`Failed to send welcome message for ${member.user.tag}:`, error);
     }
   },
 };
