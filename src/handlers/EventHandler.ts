@@ -3,6 +3,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import type { Bot } from "../client/Bot.js";
 import type { Event } from "../types/index.js";
+import { logger } from "../utils/index.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -23,11 +24,11 @@ export async function loadEvents(client: Bot): Promise<void> {
       } else {
         client.on(event.name, (...args) => event.execute(client, ...args));
       }
-      console.log(`  ✓ Loaded event: ${event.name}${event.once ? " (once)" : ""}`);
+      logger.info(`  Loaded event: ${event.name}${event.once ? " (once)" : ""}`);
     } else {
-      console.warn(`  ✗ Invalid event file: ${file}`);
+      logger.warn(`  Invalid event file: ${file}`);
     }
   }
 
-  console.log(`✓ Loaded ${eventFiles.length} events`);
+  logger.info(`Loaded ${eventFiles.length} events`);
 }
