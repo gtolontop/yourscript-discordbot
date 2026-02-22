@@ -14,14 +14,14 @@ export default {
 
     if (!ticket) {
       return interaction.reply({
-        ...errorMessage({ description: "Ce channel n'est pas un ticket." }),
+        ...errorMessage({ description: "This channel is not a ticket." }),
         ephemeral: true,
       });
     }
 
     if (ticket.claimedBy) {
       return interaction.reply({
-        ...errorMessage({ description: `Ce ticket est déjà pris en charge par <@${ticket.claimedBy}>` }),
+        ...errorMessage({ description: `This ticket is already being handled by <@${ticket.claimedBy}>` }),
         ephemeral: true,
       });
     }
@@ -38,7 +38,7 @@ export default {
 
     if (!isStaff) {
       return interaction.reply({
-        ...errorMessage({ description: "Tu n'as pas la permission de prendre en charge ce ticket." }),
+        ...errorMessage({ description: "You do not have permission to claim this ticket." }),
         ephemeral: true,
       });
     }
@@ -49,12 +49,12 @@ export default {
     });
 
     await channel.setTopic(
-      `Ticket de <@${ticket.userId}> | ${ticket.subject ?? "Pas de sujet"} | Pris en charge par ${interaction.user.tag}`
+      `Ticket from <@${ticket.userId}> | ${ticket.subject ?? "No subject"} | Claimed by ${interaction.user.tag}`
     );
 
     await interaction.reply(
       successMessage({
-        description: `${interaction.user.toString()} prend en charge ce ticket.`,
+        description: `${interaction.user.toString()} is now handling this ticket.`,
       })
     );
   },
