@@ -7,13 +7,13 @@ import { canModerate } from "../../utils/permissions.js";
 export default {
   data: new SlashCommandBuilder()
     .setName("warn")
-    .setDescription("Avertit un utilisateur")
+    .setDescription("Warn a user")
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .addUserOption((opt) =>
-      opt.setName("user").setDescription("L'utilisateur à avertir").setRequired(true)
+      opt.setName("user").setDescription("The user to warn").setRequired(true)
     )
     .addStringOption((opt) =>
-      opt.setName("raison").setDescription("Raison de l'avertissement").setRequired(true)
+      opt.setName("raison").setDescription("Reason for the warning").setRequired(true)
     ),
 
   async execute(interaction, client) {
@@ -24,14 +24,14 @@ export default {
 
     if (!targetMember) {
       return interaction.reply({
-        ...errorMessage({ description: "Cet utilisateur n'est pas sur le serveur." }),
+        ...errorMessage({ description: "This user is not on the server." }),
         ephemeral: true,
       });
     }
 
     if (!canModerate(member, targetMember)) {
       return interaction.reply({
-        ...errorMessage({ description: "Tu ne peux pas avertir cet utilisateur (hiérarchie des rôles)." }),
+        ...errorMessage({ description: "You cannot warn this user (role hierarchy)." }),
         ephemeral: true,
       });
     }
@@ -48,7 +48,7 @@ export default {
     // Try to DM the user
     try {
       await target.send(
-        `⚠️ Tu as reçu un avertissement sur **${interaction.guild?.name}**\n**Raison:** ${reason}`
+        `⚠️ You have received a warning on **${interaction.guild?.name}**\n**Reason:** ${reason}`
       );
     } catch {
       // DMs disabled
@@ -56,8 +56,8 @@ export default {
 
     await interaction.reply(
       warningMessage({
-        title: "Avertissement",
-        description: `**${target.tag}** a reçu un avertissement.\n**Raison:** ${reason}\n**Total warns:** ${warnCount}`,
+        title: "Warning",
+        description: `**${target.tag}** has received a warning.\n**Reason:** ${reason}\n**Total warns:** ${warnCount}`,
       })
     );
   },
