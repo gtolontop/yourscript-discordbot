@@ -20,94 +20,94 @@ const buttonStyles: Record<string, ButtonStyle> = {
 export default {
   data: new SlashCommandBuilder()
     .setName("reactionrole")
-    .setDescription("Système de reaction roles")
+    .setDescription("Reaction role system")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
     .addSubcommand((sub) =>
       sub
         .setName("create")
-        .setDescription("Créer un panneau de reaction roles")
+        .setDescription("Create a reaction role panel")
         .addStringOption((opt) =>
           opt
             .setName("titre")
-            .setDescription("Titre du panneau")
+            .setDescription("Panel title")
             .setRequired(true)
             .setMaxLength(100)
         )
         .addStringOption((opt) =>
           opt
             .setName("description")
-            .setDescription("Description du panneau")
+            .setDescription("Panel description")
             .setRequired(false)
             .setMaxLength(1000)
         )
         .addChannelOption((opt) =>
           opt
             .setName("channel")
-            .setDescription("Channel pour le panneau (défaut: actuel)")
+            .setDescription("Channel for the panel (default: current)")
             .setRequired(false)
         )
     )
     .addSubcommand((sub) =>
       sub
         .setName("add")
-        .setDescription("Ajouter un bouton de rôle à un panneau existant")
+        .setDescription("Add a role button to an existing panel")
         .addStringOption((opt) =>
           opt
             .setName("message_id")
-            .setDescription("ID du message du panneau")
+            .setDescription("Panel message ID")
             .setRequired(true)
         )
         .addRoleOption((opt) =>
           opt
             .setName("role")
-            .setDescription("Le rôle à ajouter")
+            .setDescription("The role to add")
             .setRequired(true)
         )
         .addStringOption((opt) =>
           opt
             .setName("label")
-            .setDescription("Texte du bouton")
+            .setDescription("Button text")
             .setRequired(false)
             .setMaxLength(80)
         )
         .addStringOption((opt) =>
           opt
             .setName("emoji")
-            .setDescription("Emoji du bouton")
+            .setDescription("Button emoji")
             .setRequired(false)
         )
         .addStringOption((opt) =>
           opt
             .setName("style")
-            .setDescription("Style du bouton")
+            .setDescription("Button style")
             .setRequired(false)
             .addChoices(
-              { name: "Bleu (Primary)", value: "primary" },
-              { name: "Gris (Secondary)", value: "secondary" },
-              { name: "Vert (Success)", value: "success" },
-              { name: "Rouge (Danger)", value: "danger" }
+              { name: "Blue (Primary)", value: "primary" },
+              { name: "Gray (Secondary)", value: "secondary" },
+              { name: "Green (Success)", value: "success" },
+              { name: "Red (Danger)", value: "danger" }
             )
         )
     )
     .addSubcommand((sub) =>
       sub
         .setName("remove")
-        .setDescription("Retirer un rôle d'un panneau")
+        .setDescription("Remove a role from a panel")
         .addStringOption((opt) =>
           opt
             .setName("message_id")
-            .setDescription("ID du message du panneau")
+            .setDescription("Panel message ID")
             .setRequired(true)
         )
         .addRoleOption((opt) =>
           opt
             .setName("role")
-            .setDescription("Le rôle à retirer")
+            .setDescription("The role to remove")
             .setRequired(true)
         )
     )
     .addSubcommand((sub) =>
-      sub.setName("list").setDescription("Voir tous les panneaux de reaction roles")
+      sub.setName("list").setDescription("View all reaction role panels")
     ),
 
   async execute(interaction, client) {
@@ -116,20 +116,20 @@ export default {
 
     if (subcommand === "create") {
       const title = interaction.options.getString("titre", true);
-      const description = interaction.options.getString("description") ?? "Clique sur un bouton pour obtenir/retirer un rôle.";
+      const description = interaction.options.getString("description") ?? "Click a button to get/remove a role.";
       const channel = (interaction.options.getChannel("channel") ?? interaction.channel) as TextChannel;
 
       const embed = new EmbedBuilder()
         .setTitle(title)
         .setDescription(description)
         .setColor(Colors.Primary)
-        .setFooter({ text: "Utilise /reactionrole add pour ajouter des rôles" });
+        .setFooter({ text: "Use /reactionrole add to add roles" });
 
       const message = await channel.send({ embeds: [embed] });
 
       return interaction.reply({
         ...successMessage({
-          description: `Panneau créé dans <#${channel.id}>\n**ID:** \`${message.id}\`\n\nUtilise \`/reactionrole add\` pour ajouter des boutons.`,
+          description: `Panel created in <#${channel.id}>\n**ID:** \`${message.id}\`\n\nUse \`/reactionrole add\` to add buttons.`,
         }),
         ephemeral: true,
       });
@@ -149,7 +149,7 @@ export default {
 
       if (existing) {
         return interaction.reply({
-          ...errorMessage({ description: "Ce rôle est déjà sur ce panneau." }),
+          ...errorMessage({ description: "This role is already on this panel." }),
           ephemeral: true,
         });
       }
@@ -165,7 +165,7 @@ export default {
 
       if (!targetMessage) {
         return interaction.reply({
-          ...errorMessage({ description: "Message introuvable." }),
+          ...errorMessage({ description: "Message not found." }),
           ephemeral: true,
         });
       }
@@ -178,7 +178,7 @@ export default {
       // Check button limit (5 per row, 5 rows max = 25 buttons)
       if (existingRoles.length >= 25) {
         return interaction.reply({
-          ...errorMessage({ description: "Limite de 25 boutons par panneau atteinte." }),
+          ...errorMessage({ description: "Limit of 25 buttons per panel reached." }),
           ephemeral: true,
         });
       }
@@ -204,7 +204,7 @@ export default {
 
       return interaction.reply(
         successMessage({
-          description: `Bouton ajouté pour le rôle ${role.toString()}`,
+          description: `Button added for role ${role.toString()}`,
         })
       );
     }
@@ -219,7 +219,7 @@ export default {
 
       if (!reactionRole) {
         return interaction.reply({
-          ...errorMessage({ description: "Ce rôle n'est pas sur ce panneau." }),
+          ...errorMessage({ description: "This role is not on this panel." }),
           ephemeral: true,
         });
       }
@@ -249,7 +249,7 @@ export default {
 
       return interaction.reply(
         successMessage({
-          description: `Bouton retiré pour le rôle ${role.toString()}`,
+          description: `Button removed for role ${role.toString()}`,
         })
       );
     }
@@ -261,7 +261,7 @@ export default {
 
       if (reactionRoles.length === 0) {
         return interaction.reply({
-          ...errorMessage({ description: "Aucun reaction role configuré." }),
+          ...errorMessage({ description: "No reaction roles configured." }),
           ephemeral: true,
         });
       }
@@ -284,21 +284,21 @@ export default {
         .setTitle("🎭 Reaction Roles")
         .setDescription(lines.join("\n\n"))
         .setColor(Colors.Primary)
-        .setFooter({ text: `${reactionRoles.length} rôle(s) configuré(s)` });
+        .setFooter({ text: `${reactionRoles.length} role(s) configured` });
 
       return interaction.reply({ embeds: [embed] });
     }
   },
 } satisfies Command;
 
-function buildButtonRows(roles: { roleId: string; emoji: string; label: string; style: string }[]): ActionRowBuilder<ButtonBuilder>[] {
+function buildButtonRows(roles: { roleId: string; emoji: string; label: string | null; style: string }[]): ActionRowBuilder<ButtonBuilder>[] {
   const rows: ActionRowBuilder<ButtonBuilder>[] = [];
   let currentRow = new ActionRowBuilder<ButtonBuilder>();
 
   for (const role of roles) {
     const button = new ButtonBuilder()
       .setCustomId(`rr_${role.roleId}`)
-      .setLabel(role.label)
+      .setLabel(role.label ?? "Role")
       .setStyle(buttonStyles[role.style] ?? ButtonStyle.Primary);
 
     if (role.emoji) {
