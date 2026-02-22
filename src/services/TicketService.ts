@@ -901,14 +901,25 @@ export class TicketService {
     if (!publicChannel) return false;
 
     const user = await this.client.users.fetch(ticket.userId).catch(() => null);
-    const stars = "⭐".repeat(rating) + "☆".repeat(5 - rating);
+    const aiSummary = await this.client.db.ticketSummary.findUnique({
+      where: { ticketId: ticket.id },
+    }).catch(() => null);
+
+    let miniContext = "";
+    if (aiSummary && aiSummary.summary) {
+      const firstSentence = aiSummary.summary.split('.')[0] || "";
+      miniContext = firstSentence.substring(0, 100) + (firstSentence.length > 100 ? "..." : "");
+    } else if (ticket.subject) {
+      miniContext = ticket.subject.substring(0, 100);
+    }
 
     await publicChannel.send({
       ...createMessage({
         title: "💬 New Review",
         description: [
-          `**From:** ${user?.tag ?? "Anonymous"}`,
+          `**From:** <@${user?.id ?? ticket.userId}>`,
           `**Rating:** ${stars}`,
+          ...(miniContext ? [`**Context:** ${miniContext}`] : []),
           "",
           `> ${review}`,
         ].join("\n"),
