@@ -20,57 +20,57 @@ const durations: Record<string, number> = {
 export default {
   data: new SlashCommandBuilder()
     .setName("mute")
-    .setDescription("Mute un utilisateur (timeout)")
+    .setDescription("Mute a user (timeout)")
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .addUserOption((opt) =>
-      opt.setName("user").setDescription("L'utilisateur à mute").setRequired(true)
+      opt.setName("user").setDescription("The user to mute").setRequired(true)
     )
     .addStringOption((opt) =>
       opt
         .setName("duree")
-        .setDescription("Durée du mute")
+        .setDescription("Mute duration")
         .setRequired(true)
         .addChoices(
           { name: "1 minute", value: "1m" },
           { name: "5 minutes", value: "5m" },
           { name: "10 minutes", value: "10m" },
           { name: "30 minutes", value: "30m" },
-          { name: "1 heure", value: "1h" },
-          { name: "6 heures", value: "6h" },
-          { name: "12 heures", value: "12h" },
-          { name: "1 jour", value: "1d" },
-          { name: "7 jours", value: "7d" },
-          { name: "28 jours", value: "28d" }
+          { name: "1 hour", value: "1h" },
+          { name: "6 hours", value: "6h" },
+          { name: "12 hours", value: "12h" },
+          { name: "1 day", value: "1d" },
+          { name: "7 days", value: "7d" },
+          { name: "28 days", value: "28d" }
         )
     )
     .addStringOption((opt) =>
-      opt.setName("raison").setDescription("Raison du mute")
+      opt.setName("raison").setDescription("Reason for the mute")
     ),
 
   async execute(interaction, client) {
     const target = interaction.options.getUser("user", true);
     const duration = interaction.options.getString("duree", true);
-    const reason = interaction.options.getString("raison") ?? "Aucune raison fournie";
+    const reason = interaction.options.getString("raison") ?? "No reason provided";
     const member = interaction.member as GuildMember;
     const targetMember = interaction.guild?.members.cache.get(target.id);
 
     if (!targetMember) {
       return interaction.reply({
-        ...errorMessage({ description: "Cet utilisateur n'est pas sur le serveur." }),
+        ...errorMessage({ description: "This user is not on the server." }),
         ephemeral: true,
       });
     }
 
     if (!canModerate(member, targetMember)) {
       return interaction.reply({
-        ...errorMessage({ description: "Tu ne peux pas mute cet utilisateur (hiérarchie des rôles)." }),
+        ...errorMessage({ description: "You cannot mute this user (role hierarchy)." }),
         ephemeral: true,
       });
     }
 
     if (!botCanModerate(targetMember)) {
       return interaction.reply({
-        ...errorMessage({ description: "Je ne peux pas mute cet utilisateur (hiérarchie des rôles)." }),
+        ...errorMessage({ description: "I cannot mute this user (role hierarchy)." }),
         ephemeral: true,
       });
     }
@@ -78,26 +78,26 @@ export default {
     const durationMs = durations[duration];
     if (!durationMs) {
       return interaction.reply({
-        ...errorMessage({ description: "Durée invalide." }),
+        ...errorMessage({ description: "Invalid duration." }),
         ephemeral: true,
       });
     }
 
     try {
-      await targetMember.timeout(durationMs, `${reason} | Par ${interaction.user.tag}`);
+      await targetMember.timeout(durationMs, `${reason} | By ${interaction.user.tag}`);
 
       const modService = new ModerationService(client);
       await modService.logMute(interaction.guild!, target, interaction.user, duration, reason);
 
       await interaction.reply(
         successMessage({
-          title: "Utilisateur mute",
-          description: `**${target.tag}** a été mute pour **${duration}**.\n**Raison:** ${reason}`,
+          title: "User Muted",
+          description: `**${target.tag}** has been muted for **${duration}**.\n**Reason:** ${reason}`,
         })
       );
     } catch (error) {
       await interaction.reply({
-        ...errorMessage({ description: "Impossible de mute cet utilisateur." }),
+        ...errorMessage({ description: "Unable to mute this user." }),
         ephemeral: true,
       });
     }
