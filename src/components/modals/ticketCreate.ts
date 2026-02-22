@@ -7,6 +7,15 @@ export default {
 
   async execute(interaction, client) {
     const subject = interaction.fields.getTextInputValue("subject") || undefined;
+    
+    let username: string | undefined;
+    let serverIp: string | undefined;
+    let description: string | undefined;
+
+    try { username = interaction.fields.getTextInputValue("username") || undefined; } catch {}
+    try { serverIp = interaction.fields.getTextInputValue("server_ip") || undefined; } catch {}
+    try { description = interaction.fields.getTextInputValue("description") || undefined; } catch {}
+
     const ticketService = new TicketService(client);
 
     // Extract category from customId if present (ticket_create_modal_Support)
@@ -36,7 +45,12 @@ export default {
       interaction.guild!,
       interaction.user,
       subject,
-      category
+      category,
+      {
+        ...(username ? { username } : {}),
+        ...(serverIp ? { serverIp } : {}),
+        ...(description ? { description } : {}),
+      }
     );
 
     if (!channel) {
