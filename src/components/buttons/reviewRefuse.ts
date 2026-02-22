@@ -7,11 +7,11 @@ export default {
 
   async execute(interaction, client) {
     // Extract ticket ID from custom ID (review_refuse_123)
-    const ticketId = parseInt(interaction.customId.split("_")[2]);
+    const ticketId = parseInt(interaction.customId.split("_")[2]!);
 
     if (isNaN(ticketId)) {
       return interaction.reply({
-        ...errorMessage({ description: "ID de ticket invalide." }),
+        ...errorMessage({ description: "Invalid ticket ID." }),
         ephemeral: true,
       });
     }
@@ -28,7 +28,7 @@ export default {
         new ActionRowBuilder<ButtonBuilder>().addComponents(
           new ButtonBuilder()
             .setCustomId(`review_done_${ticketId}`)
-            .setLabel(`Refusé par ${interaction.user.username}`)
+            .setLabel(`Declined by ${interaction.user.username}`)
             .setStyle(ButtonStyle.Danger)
             .setDisabled(true)
         ),
