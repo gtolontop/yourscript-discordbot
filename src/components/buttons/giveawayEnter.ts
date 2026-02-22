@@ -14,14 +14,14 @@ export default {
 
     if (!giveaway) {
       return interaction.reply({
-        ...errorMessage({ description: "Giveaway introuvable." }),
+        ...errorMessage({ description: "Giveaway not found." }),
         ephemeral: true,
       });
     }
 
     if (giveaway.ended) {
       return interaction.reply({
-        ...errorMessage({ description: "Ce giveaway est terminé." }),
+        ...errorMessage({ description: "This giveaway has ended." }),
         ephemeral: true,
       });
     }
@@ -32,7 +32,7 @@ export default {
       if (!member?.roles.cache.has(giveaway.requiredRole)) {
         return interaction.reply({
           ...errorMessage({
-            description: `Tu dois avoir le rôle <@&${giveaway.requiredRole}> pour participer.`,
+            description: `You must have the <@&${giveaway.requiredRole}> role to participate.`,
           }),
           ephemeral: true,
         });
@@ -41,6 +41,13 @@ export default {
 
     const participants = JSON.parse(giveaway.participants) as string[];
     const isParticipating = participants.includes(interaction.user.id);
+
+    if (!interaction.message.embeds[0]) {
+      return interaction.reply({
+        ...errorMessage({ description: "Embed not found." }),
+        ephemeral: true,
+      });
+    }
 
     if (isParticipating) {
       // Remove participation
@@ -54,13 +61,13 @@ export default {
       // Update embed
       const embed = EmbedBuilder.from(interaction.message.embeds[0]);
       embed.setFooter({
-        text: `Par ${(await client.users.fetch(giveaway.hostId)).tag} • ${newParticipants.length} participants`,
+        text: `By ${(await client.users.fetch(giveaway.hostId)).tag} • ${newParticipants.length} participants`,
       });
 
       await interaction.update({ embeds: [embed] });
 
       return interaction.followUp({
-        content: "Tu ne participes plus au giveaway.",
+        content: "You are no longer participating in the giveaway.",
         ephemeral: true,
       });
     } else {
@@ -81,7 +88,7 @@ export default {
       await interaction.update({ embeds: [embed] });
 
       return interaction.followUp({
-        content: "🎉 Tu participes maintenant au giveaway !",
+        content: "🎉 You are now participating in the giveaway!",
         ephemeral: true,
       });
     }
