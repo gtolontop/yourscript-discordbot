@@ -18,14 +18,21 @@ export default {
 
     if (!suggestion) {
       return interaction.reply({
-        ...errorMessage({ description: "Suggestion introuvable." }),
+        ...errorMessage({ description: "Suggestion not found." }),
         ephemeral: true,
       });
     }
 
     if (suggestion.status !== "pending") {
       return interaction.reply({
-        ...errorMessage({ description: "Cette suggestion a déjà été traitée." }),
+        ...errorMessage({ description: "This suggestion has already been processed." }),
+        ephemeral: true,
+      });
+    }
+
+    if (!interaction.message.embeds[0]) {
+      return interaction.reply({
+        ...errorMessage({ description: "Embed not found." }),
         ephemeral: true,
       });
     }
