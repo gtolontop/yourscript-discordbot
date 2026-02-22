@@ -16,6 +16,45 @@ export default {
     if (ticket && ticket.status === "open") {
       const ticketService = new TicketService(client);
       await ticketService.updateLastActivity(message.channelId);
+
+      // Emit ticket:message to AI namespace
+      if (client.aiNamespace && message.content) {
+        const guildConfig = await client.db.guild.findUnique({ where: { id: message.guild.id } });
+        const isStaff = guildConfig?.ticketSupportRole
+          ? message.member?.roles.cache.has(guildConfig.ticketSupportRole) ?? false
+          : message.member?.permissions.has("ManageMessages") ?? false;
+
+        client.aiNamespace.emit("ticket:message", {
+          ticketId: ticket.id,
+          channelId: message.channelId,
+          guildId: message.guild.id,
+          content: message.content,
+          userId: message.author.id,
+          username: message.author.username,
+          isStaff,
+          isBot: message.author.bot,
+        });
+      }
+    }
+
+    // Detect staff replies in DM log threads → relay to selfbot
+    if (client.aiNamespace && message.channel.isThread() && message.content) {
+      const guildConfig = await client.db.guild.findUnique({ where: { id: message.guild.id } });
+      if (guildConfig?.aiDmLogChannel && message.channel.parentId === guildConfig.aiDmLogChannel) {
+        // This is a message in a DM log thread - check if it's a staff member (not bot)
+        const isStaff = guildConfig.ticketSupportRole
+          ? message.member?.roles.cache.has(guildConfig.ticketSupportRole) ?? false
+          : message.member?.permissions.has("ManageMessages") ?? false;
+
+        if (isStaff) {
+          client.aiNamespace.emit("dm:threadReply" as any, {
+            threadId: message.channel.id,
+            content: message.content,
+            userId: message.author.id,
+            username: message.author.username,
+          });
+        }
+      }
     }
   },
 } satisfies Event<"messageCreate">;
