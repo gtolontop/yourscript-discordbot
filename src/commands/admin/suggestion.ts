@@ -14,23 +14,23 @@ import { successMessage, errorMessage, Colors } from "../../utils/index.js";
 export default {
   data: new SlashCommandBuilder()
     .setName("suggestion")
-    .setDescription("Système de suggestions")
+    .setDescription("Suggestion system")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand((sub) =>
       sub
         .setName("setup")
-        .setDescription("Configurer le système de suggestions")
+        .setDescription("Configure the suggestion system")
         .addChannelOption((opt) =>
           opt
             .setName("channel")
-            .setDescription("Channel pour les suggestions")
+            .setDescription("Channel for suggestions")
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(true)
         )
         .addChannelOption((opt) =>
           opt
             .setName("approved")
-            .setDescription("Channel pour les suggestions approuvées")
+            .setDescription("Channel for approved suggestions")
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(false)
         )
@@ -38,45 +38,45 @@ export default {
     .addSubcommand((sub) =>
       sub
         .setName("approve")
-        .setDescription("Approuver une suggestion")
+        .setDescription("Approve a suggestion")
         .addStringOption((opt) =>
           opt
             .setName("id")
-            .setDescription("ID du message de la suggestion")
+            .setDescription("Suggestion message ID")
             .setRequired(true)
         )
         .addStringOption((opt) =>
           opt
-            .setName("raison")
-            .setDescription("Raison de l'approbation")
+            .setName("reason")
+            .setDescription("Approval reason")
             .setRequired(false)
         )
     )
     .addSubcommand((sub) =>
       sub
         .setName("reject")
-        .setDescription("Rejeter une suggestion")
+        .setDescription("Reject a suggestion")
         .addStringOption((opt) =>
           opt
             .setName("id")
-            .setDescription("ID du message de la suggestion")
+            .setDescription("Suggestion message ID")
             .setRequired(true)
         )
         .addStringOption((opt) =>
           opt
-            .setName("raison")
-            .setDescription("Raison du rejet")
+            .setName("reason")
+            .setDescription("Rejection reason")
             .setRequired(false)
         )
     )
     .addSubcommand((sub) =>
       sub
         .setName("suggest")
-        .setDescription("Proposer une suggestion")
+        .setDescription("Submit a suggestion")
         .addStringOption((opt) =>
           opt
-            .setName("contenu")
-            .setDescription("Ta suggestion")
+            .setName("content")
+            .setDescription("Your suggestion")
             .setRequired(true)
             .setMaxLength(1000)
         )
@@ -105,19 +105,19 @@ export default {
 
       return interaction.reply(
         successMessage({
-          title: "💡 Suggestions configurées",
+          title: "💡 Suggestions Configured",
           description: [
             `**Channel:** <#${channel.id}>`,
-            approved ? `**Approuvées:** <#${approved.id}>` : null,
+            approved ? `**Approved:** <#${approved.id}>` : null,
             "",
-            "Les utilisateurs peuvent proposer via `/suggestion suggest`",
+            "Users can submit suggestions via `/suggestion suggest`",
           ].filter(Boolean).join("\n"),
         })
       );
     }
 
     if (subcommand === "suggest") {
-      const content = interaction.options.getString("contenu", true);
+      const content = interaction.options.getString("content", true);
 
       const config = await client.db.guild.findUnique({
         where: { id: guildId },
@@ -125,7 +125,7 @@ export default {
 
       if (!config?.suggestionChannel) {
         return interaction.reply({
-          ...errorMessage({ description: "Le système de suggestions n'est pas configuré." }),
+          ...errorMessage({ description: "The suggestion system is not configured." }),
           ephemeral: true,
         });
       }
@@ -133,13 +133,13 @@ export default {
       const suggestionChannel = interaction.guild?.channels.cache.get(config.suggestionChannel) as TextChannel;
       if (!suggestionChannel) {
         return interaction.reply({
-          ...errorMessage({ description: "Le channel de suggestions n'existe plus." }),
+          ...errorMessage({ description: "The suggestions channel no longer exists." }),
           ephemeral: true,
         });
       }
 
       const embed = new EmbedBuilder()
-        .setTitle("💡 Nouvelle suggestion")
+        .setTitle("💡 New Suggestion")
         .setDescription(content)
         .setColor(Colors.Primary)
         .setAuthor({
@@ -147,10 +147,10 @@ export default {
           iconURL: interaction.user.displayAvatarURL(),
         })
         .addFields(
-          { name: "Status", value: "⏳ En attente", inline: true },
+          { name: "Status", value: "⏳ Pending", inline: true },
           { name: "Votes", value: "👍 0 | 👎 0", inline: true }
         )
-        .setFooter({ text: `ID: En cours...` })
+        .setFooter({ text: `ID: Loading...` })
         .setTimestamp();
 
       const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -186,14 +186,14 @@ export default {
       await message.edit({ embeds: [embed] });
 
       return interaction.reply({
-        ...successMessage({ description: `Ta suggestion a été envoyée dans <#${config.suggestionChannel}>` }),
+        ...successMessage({ description: `Your suggestion has been sent to <#${config.suggestionChannel}>` }),
         ephemeral: true,
       });
     }
 
     if (subcommand === "approve" || subcommand === "reject") {
       const messageId = interaction.options.getString("id", true);
-      const reason = interaction.options.getString("raison");
+      const reason = interaction.options.getString("reason");
 
       const suggestion = await client.db.suggestion.findUnique({
         where: { messageId },
@@ -201,14 +201,14 @@ export default {
 
       if (!suggestion) {
         return interaction.reply({
-          ...errorMessage({ description: "Suggestion introuvable avec cet ID." }),
+          ...errorMessage({ description: "Suggestion not found with this ID." }),
           ephemeral: true,
         });
       }
 
       if (suggestion.status !== "pending") {
         return interaction.reply({
-          ...errorMessage({ description: "Cette suggestion a déjà été traitée." }),
+          ...errorMessage({ description: "This suggestion has already been processed." }),
           ephemeral: true,
         });
       }
@@ -232,25 +232,25 @@ export default {
       const suggestionChannel = interaction.guild?.channels.cache.get(config?.suggestionChannel ?? "") as TextChannel;
       if (suggestionChannel) {
         const message = await suggestionChannel.messages.fetch(messageId).catch(() => null);
-        if (message) {
+        if (message && message.embeds[0]) {
           const embed = EmbedBuilder.from(message.embeds[0]);
           embed.setColor(isApproved ? Colors.Success : Colors.Error);
           embed.spliceFields(0, 1, {
             name: "Status",
-            value: isApproved ? "✅ Approuvée" : "❌ Rejetée",
+            value: isApproved ? "✅ Approved" : "❌ Rejected",
             inline: true,
           });
 
           if (reason) {
             embed.addFields({
-              name: isApproved ? "Raison d'approbation" : "Raison du rejet",
+              name: isApproved ? "Approval reason" : "Rejection reason",
               value: reason,
               inline: false,
             });
           }
 
           embed.addFields({
-            name: "Traitée par",
+            name: "Processed by",
             value: interaction.user.tag,
             inline: true,
           });
@@ -269,20 +269,20 @@ export default {
           const user = await client.users.fetch(suggestion.userId).catch(() => null);
 
           const approvedEmbed = new EmbedBuilder()
-            .setTitle("✅ Suggestion approuvée")
+            .setTitle("✅ Suggestion Approved")
             .setDescription(suggestion.content)
             .setColor(Colors.Success)
             .setAuthor({
-              name: user?.tag ?? "Inconnu",
-              iconURL: user?.displayAvatarURL(),
+              name: user?.tag ?? "Unknown",
+              ...(user && { iconURL: user.displayAvatarURL() }),
             })
             .addFields(
-              { name: "Votes finaux", value: `👍 ${suggestion.upvotes} | 👎 ${suggestion.downvotes}`, inline: true }
+              { name: "Final votes", value: `👍 ${suggestion.upvotes} | 👎 ${suggestion.downvotes}`, inline: true }
             )
             .setTimestamp();
 
           if (reason) {
-            approvedEmbed.addFields({ name: "Note du staff", value: reason, inline: false });
+            approvedEmbed.addFields({ name: "Staff note", value: reason, inline: false });
           }
 
           await approvedChannel.send({ embeds: [approvedEmbed] });
@@ -291,7 +291,7 @@ export default {
 
       return interaction.reply(
         successMessage({
-          description: `Suggestion ${isApproved ? "approuvée" : "rejetée"} avec succès.`,
+          description: `Suggestion ${isApproved ? "approved" : "rejected"} successfully.`,
         })
       );
     }
