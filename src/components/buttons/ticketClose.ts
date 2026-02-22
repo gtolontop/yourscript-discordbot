@@ -11,7 +11,7 @@ export default {
     const ticketService = new TicketService(client);
 
     await interaction.reply(
-      warningMessage({ description: "Fermeture du ticket en cours..." })
+      warningMessage({ description: "Closing ticket..." })
     );
 
     await ticketService.closeTicket(channel, interaction.user);
