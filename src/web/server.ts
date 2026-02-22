@@ -327,27 +327,39 @@ export function startWebServer(client: Bot, port: number = 3000): { app: ReturnT
         }
 
         const notifyChannelId = data.level === "critical" ? guildConfig?.aiUrgentChannel : guildConfig?.aiTodoChannel;
-        const channelToNotify = notifyChannelId ? guild.channels.cache.get(notifyChannelId) : guild.channels.cache.get(data.channelId);
+        const dedicatedChannel = notifyChannelId ? guild.channels.cache.get(notifyChannelId) : null;
+        const ticketChannel = guild.channels.cache.get(data.channelId);
 
-        if (channelToNotify?.isTextBased() && !channelToNotify.isDMBased()) {
-          const { EmbedBuilder } = await import("discord.js");
-          const embed = new EmbedBuilder()
-            .setTitle(`🚨 Priority Support : ${ticketTitle}`)
-            .setDescription(`**Reason:** ${data.reason}\n**Channel:** <#${data.channelId}>`)
-            .setColor(data.level === "critical" ? 0xed4245 : 0xfee75c)
-            .setTimestamp()
-            .setFooter({ text: `Team Notification` });
+        let pingText = "";
+        if (data.level === "critical" && !teamMember) {
+          pingText = "@everyone";
+        } else if (teamMember) {
+          pingText = `<@${teamMember.userId}>`;
+        } else if (guildConfig?.ticketSupportRole) {
+          pingText = `<@&${guildConfig.ticketSupportRole}>`;
+        }
+
+        const { EmbedBuilder } = await import("discord.js");
+        const embed = new EmbedBuilder()
+          .setTitle(`🚨 Priority Support : ${ticketTitle}`)
+          .setDescription(`**Reason:** ${data.reason}\n**Channel:** <#${data.channelId}>`)
+          .setColor(data.level === "critical" ? 0xed4245 : 0xfee75c)
+          .setTimestamp()
+          .setFooter({ text: `Team Notification` });
+
+        if (dedicatedChannel?.isTextBased() && !dedicatedChannel.isDMBased()) {
+          await (dedicatedChannel as any).send({
+            content: pingText || undefined,
+            embeds: [embed],
+          });
           
-          let pingText = "";
-          if (data.level === "critical" && !teamMember) {
-            pingText = "@everyone";
-          } else if (teamMember) {
-            pingText = `<@${teamMember.userId}>`;
-          } else if (guildConfig?.ticketSupportRole) {
-            pingText = `<@&${guildConfig.ticketSupportRole}>`;
+          if (ticketChannel?.isTextBased() && !ticketChannel.isDMBased()) {
+            await (ticketChannel as any).send({
+              content: pingText || undefined,
+            });
           }
-
-          await (channelToNotify as any).send({
+        } else if (ticketChannel?.isTextBased() && !ticketChannel.isDMBased()) {
+          await (ticketChannel as any).send({
             content: pingText || undefined,
             embeds: [embed],
           });
