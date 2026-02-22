@@ -12,11 +12,11 @@ export default {
 
   async execute(interaction, client) {
     // Extract ticket ID from customId (review_request_123)
-    const ticketId = parseInt(interaction.customId.split("_")[2]);
+    const ticketId = parseInt(interaction.customId.split("_")[2]!);
 
     if (isNaN(ticketId)) {
       return interaction.reply({
-        ...errorMessage({ description: "ID de ticket invalide." }),
+        ...errorMessage({ description: "Invalid ticket ID." }),
         ephemeral: true,
       });
     }
@@ -27,7 +27,7 @@ export default {
 
     if (!ticket) {
       return interaction.reply({
-        ...errorMessage({ description: "Ticket introuvable." }),
+        ...errorMessage({ description: "Ticket not found." }),
         ephemeral: true,
       });
     }
@@ -35,7 +35,7 @@ export default {
     // Check if already requested
     if (ticket.status === "review_pending") {
       return interaction.reply({
-        ...errorMessage({ description: "Un avis a déjà été demandé pour ce ticket." }),
+        ...errorMessage({ description: "A review has already been requested for this ticket." }),
         ephemeral: true,
       });
     }
@@ -45,15 +45,15 @@ export default {
       const user = await client.users.fetch(ticket.userId);
 
       const embed = new EmbedBuilder()
-        .setTitle("💬 Donne ton avis !")
+        .setTitle("💬 Give your feedback!")
         .setDescription([
-          `Merci d'avoir utilisé le support de **${interaction.guild?.name}** !`,
+          `Thank you for using the support of **${interaction.guild?.name}**!`,
           "",
           `**Ticket:** #${ticket.number.toString().padStart(4, "0")}`,
-          ticket.subject ? `**Sujet:** ${ticket.subject}` : null,
+          ticket.subject ? `**Subject:** ${ticket.subject}` : null,
           "",
-          "On aimerait avoir ton avis sur la qualité du support.",
-          "Clique sur le bouton ci-dessous pour nous laisser un commentaire !",
+          "We would love to hear your feedback about the support quality.",
+          "Click the button below to leave us a comment!",
         ].filter(Boolean).join("\n"))
         .setColor(Colors.Primary)
         .setFooter({ text: interaction.guild?.name ?? "Support" });
@@ -61,7 +61,7 @@ export default {
       const button = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
           .setCustomId(`review_write_${ticket.id}_${interaction.guildId}`)
-          .setLabel("Donner mon avis")
+          .setLabel("Give my feedback")
           .setStyle(ButtonStyle.Primary)
           .setEmoji("⭐")
       );
@@ -74,22 +74,33 @@ export default {
         data: { status: "review_pending" },
       });
 
-      // Update the original message to show it was sent
-      await interaction.update({
-        components: [
-          new ActionRowBuilder<ButtonBuilder>().addComponents(
-            new ButtonBuilder()
-              .setCustomId(`review_request_${ticket.id}`)
-              .setLabel("Avis demandé")
-              .setStyle(ButtonStyle.Secondary)
-              .setEmoji("✅")
-              .setDisabled(true)
-          ),
-        ],
-      });
+      // Rebuild with the link button intact + updated feedback button
+      const transcriptUrl = interaction.message.embeds?.[0]?.description?.match(/\[View transcript online\]\((.*?)\)/)?.[1];
+      const updatedButtons = new ActionRowBuilder<ButtonBuilder>();
+
+      if (transcriptUrl) {
+        updatedButtons.addComponents(
+          new ButtonBuilder()
+            .setLabel("View online")
+            .setStyle(ButtonStyle.Link)
+            .setURL(transcriptUrl)
+            .setEmoji("🌐")
+        );
+      }
+
+      updatedButtons.addComponents(
+        new ButtonBuilder()
+          .setCustomId(`review_request_${ticket.id}`)
+          .setLabel(`Feedback requested by ${interaction.user.username}`)
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji("✅")
+          .setDisabled(true)
+      );
+
+      await interaction.update({ components: [updatedButtons] });
     } catch {
       return interaction.reply({
-        ...errorMessage({ description: "Impossible d'envoyer un DM à cet utilisateur (DMs fermés)." }),
+        ...errorMessage({ description: "Unable to send a DM to this user (DMs closed)." }),
         ephemeral: true,
       });
     }
