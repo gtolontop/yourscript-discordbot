@@ -105,7 +105,7 @@ export function createMessage(options: MessageOptions): ComponentsV2Message {
  */
 export function successMessage(options: SuccessMessageOptions): ComponentsV2Message {
   return createMessage({
-    title: options.title ?? "Succès",
+    title: options.title ?? "Success",
     description: options.description,
     color: "Success",
     ...(options.footer && { footer: options.footer }),
@@ -117,7 +117,7 @@ export function successMessage(options: SuccessMessageOptions): ComponentsV2Mess
  */
 export function errorMessage(options: ErrorMessageOptions): ComponentsV2Message {
   return createMessage({
-    title: options.title ?? "Erreur",
+    title: options.title ?? "Error",
     description: options.description,
     color: "Error",
     ...(options.footer && { footer: options.footer }),
@@ -129,7 +129,7 @@ export function errorMessage(options: ErrorMessageOptions): ComponentsV2Message 
  */
 export function warningMessage(options: ErrorMessageOptions): ComponentsV2Message {
   return createMessage({
-    title: options.title ?? "Attention",
+    title: options.title ?? "Warning",
     description: options.description,
     color: "Warning",
     ...(options.footer && { footer: options.footer }),
