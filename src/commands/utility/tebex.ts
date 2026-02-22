@@ -1,30 +1,28 @@
-import { ApplicationCommandOptionType, EmbedBuilder } from "discord.js";
-import { Command } from "../../handlers/command.js";
+import { SlashCommandBuilder, EmbedBuilder } from "discord.js";
+import type { Command } from "../../types/index.js";
 
-export default new Command({
-  name: "tebex",
-  description: "Check a Tebex transaction or subscription status",
-  options: [
-    {
-      name: "verify",
-      description: "Verify a specific Tebex transaction ID",
-      type: ApplicationCommandOptionType.Subcommand,
-      options: [
-        {
-          name: "transaction_id",
-          description: "The Tebex transaction ID (e.g. tbx-1234567a89b0c-123456)",
-          type: ApplicationCommandOptionType.String,
-          required: true,
-        },
-      ],
-    },
-    {
-      name: "status",
-      description: "Check the status of your subscriptions/purchases",
-      type: ApplicationCommandOptionType.Subcommand,
-    },
-  ],
-  run: async ({ interaction, client }) => {
+export default {
+  data: new SlashCommandBuilder()
+    .setName("tebex")
+    .setDescription("Check a Tebex transaction or subscription status")
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("verify")
+        .setDescription("Verify a specific Tebex transaction ID")
+        .addStringOption((option) =>
+          option
+            .setName("transaction_id")
+            .setDescription("The Tebex transaction ID (e.g. tbx-1234567a89b0c-123456)")
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("status")
+        .setDescription("Check the status of your subscriptions/purchases")
+    ),
+
+  async execute(interaction, client) {
     const subcommand = interaction.options.getSubcommand();
 
     if (subcommand === "verify") {
@@ -117,4 +115,4 @@ export default new Command({
       return interaction.reply({ embeds: [embed], ephemeral: true });
     }
   },
-});
+} satisfies Command;
