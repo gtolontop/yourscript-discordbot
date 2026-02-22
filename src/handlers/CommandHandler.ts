@@ -3,6 +3,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import type { Bot } from "../client/Bot.js";
 import type { Command } from "../types/index.js";
+import { logger } from "../utils/index.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -23,12 +24,12 @@ export async function loadCommands(client: Bot): Promise<void> {
 
       if (command?.data?.name) {
         client.commands.set(command.data.name, command);
-        console.log(`  ✓ Loaded command: ${command.data.name}`);
+        logger.info(`  Loaded command: /${command.data.name} [${category}]`);
       } else {
-        console.warn(`  ✗ Invalid command file: ${file}`);
+        logger.warn(`  Invalid command file: ${file}`);
       }
     }
   }
 
-  console.log(`✓ Loaded ${client.commands.size} commands`);
+  logger.info(`Loaded ${client.commands.size} commands`);
 }
