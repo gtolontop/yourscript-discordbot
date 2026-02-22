@@ -57,6 +57,16 @@ export default {
       },
     });
 
+    // Now close the ticket first, so transcript and summary are generated
+    const channel = interaction.channel as TextChannel;
+    if (channel) {
+      const ticketService = new TicketService(client);
+      await ticketService.closeTicket(channel, interaction.user);
+    }
+
+    // Wait a brief moment to ensure DB records are written
+    await new Promise(r => setTimeout(r, 1000));
+
     // Send to review channel for staff approval
     const guild = client.guilds.cache.get(guildId);
     if (guild && ticket.guild.ticketReviewChannel) {
@@ -64,12 +74,33 @@ export default {
       if (reviewChannel) {
         const stars = "\u2B50".repeat(rating) + "\u2606".repeat(5 - rating);
 
+        const transcript = await client.db.transcript.findFirst({
+          where: { ticketId: ticket.id },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        const aiSummary = await client.db.ticketSummary.findUnique({
+          where: { ticketId: ticket.id },
+        });
+
+        const webUrl = process.env['WEB_URL'] ?? `http://localhost:${process.env['WEB_PORT'] ?? 3000}`;
+        const transcriptUrl = transcript ? `${webUrl}/transcript/${transcript.id}` : null;
+        const transcriptLink = transcriptUrl ? `[View online](${transcriptUrl})` : "Not available";
+        
+        // Since we know who closed it (interaction.user)
+        const closedBy = `<@${interaction.user.id}>`;
+
         const reviewEmbed = new EmbedBuilder()
           .setTitle(`\u2B50 Review Received - Ticket #${ticket.number.toString().padStart(4, "0")}`)
           .setDescription([
-            `**From:** ${interaction.user.tag} (<@${interaction.user.id}>)`,
+            `**From:** <@${interaction.user.id}>`,
             `**Rating:** ${stars}`,
+            `**Subject:** ${ticket.subject ?? "None"}`,
+            `**Closed By:** ${closedBy}`,
+            `**Transcript:** ${transcriptLink}`,
             "",
+            ...(aiSummary ? [`**AI Summary:** ${aiSummary.summary.substring(0, 300)}${aiSummary.summary.length > 300 ? "..." : ""}`, ""] : []),
+            `**User Review:**`,
             `> ${review}`,
           ].join("\n"))
           .setColor(Colors.Warning)
@@ -93,29 +124,6 @@ export default {
           components: [approvalButtons],
         });
       }
-    }
-
-    // Emit review:submitted to AI namespace
-    if (client.aiNamespace) {
-      client.aiNamespace.emit("review:submitted", {
-        ticketId,
-        guildId: guildId!,
-        userId: interaction.user.id,
-        rating,
-        review,
-      });
-    }
-
-    // Thank the user
-    await interaction.reply(
-      successMessage({ description: "Thanks for your review! Closing the ticket..." })
-    );
-
-    // Now close the ticket
-    const channel = interaction.channel as TextChannel;
-    if (channel) {
-      const ticketService = new TicketService(client);
-      await ticketService.closeTicket(channel, interaction.user);
     }
   },
 } satisfies ModalComponent;
