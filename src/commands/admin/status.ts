@@ -5,44 +5,44 @@ import { successMessage, errorMessage } from "../../utils/index.js";
 export default {
   data: new SlashCommandBuilder()
     .setName("status")
-    .setDescription("Gérer le status du bot")
+    .setDescription("Manage bot status")
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand((sub) =>
       sub
         .setName("set")
-        .setDescription("Définir le status du bot")
+        .setDescription("Set bot status")
         .addStringOption((opt) =>
           opt
             .setName("type")
-            .setDescription("Type d'activité")
+            .setDescription("Activity type")
             .setRequired(true)
             .addChoices(
-              { name: "Joue à", value: "playing" },
-              { name: "Regarde", value: "watching" },
-              { name: "Écoute", value: "listening" },
-              { name: "En compétition", value: "competing" },
+              { name: "Playing", value: "playing" },
+              { name: "Watching", value: "watching" },
+              { name: "Listening", value: "listening" },
+              { name: "Competing", value: "competing" },
               { name: "Stream", value: "streaming" }
             )
         )
         .addStringOption((opt) =>
           opt
             .setName("texte")
-            .setDescription("Texte du status")
+            .setDescription("Status text")
             .setRequired(true)
             .setMaxLength(128)
         )
         .addStringOption((opt) =>
           opt
             .setName("url")
-            .setDescription("URL du stream (pour le type Stream)")
+            .setDescription("Stream URL (for Stream type)")
             .setRequired(false)
         )
     )
     .addSubcommand((sub) =>
-      sub.setName("clear").setDescription("Supprimer le status du bot")
+      sub.setName("clear").setDescription("Clear bot status")
     )
     .addSubcommand((sub) =>
-      sub.setName("show").setDescription("Voir le status actuel du bot")
+      sub.setName("show").setDescription("View current bot status")
     ),
 
   async execute(interaction, client) {
@@ -64,35 +64,35 @@ export default {
       if (type === "streaming" && url) {
         client.user?.setActivity({
           name: text,
-          type: activityTypes[type],
+          type: activityTypes[type]!,
           url,
         });
       } else {
         client.user?.setActivity({
           name: text,
-          type: activityTypes[type],
+          type: activityTypes[type]!,
         });
       }
 
       const typeLabels: Record<string, string> = {
-        playing: "Joue à",
-        watching: "Regarde",
-        listening: "Écoute",
-        competing: "En compétition",
+        playing: "Playing",
+        watching: "Watching",
+        listening: "Listening",
+        competing: "Competing",
         streaming: "Stream",
       };
 
       return interaction.reply(
         successMessage({
-          description: `Status défini: **${typeLabels[type]}** ${text}`,
+          description: `Status set: **${typeLabels[type]}** ${text}`,
         })
       );
     }
 
     if (subcommand === "clear") {
-      client.user?.setActivity(null);
+      client.user?.setPresence({ activities: [] });
       return interaction.reply(
-        successMessage({ description: "Status supprimé." })
+        successMessage({ description: "Status cleared." })
       );
     }
 
@@ -101,23 +101,23 @@ export default {
 
       if (!activity) {
         return interaction.reply({
-          ...errorMessage({ description: "Aucun status défini." }),
+          ...errorMessage({ description: "No status set." }),
           ephemeral: true,
         });
       }
 
       const typeLabels: Record<number, string> = {
-        [ActivityType.Playing]: "Joue à",
-        [ActivityType.Watching]: "Regarde",
-        [ActivityType.Listening]: "Écoute",
-        [ActivityType.Competing]: "En compétition",
+        [ActivityType.Playing]: "Playing",
+        [ActivityType.Watching]: "Watching",
+        [ActivityType.Listening]: "Listening",
+        [ActivityType.Competing]: "Competing",
         [ActivityType.Streaming]: "Stream",
       };
 
       return interaction.reply(
         successMessage({
-          title: "🤖 Status actuel",
-          description: `**${typeLabels[activity.type] ?? "Inconnu"}** ${activity.name}`,
+          title: "🤖 Current Status",
+          description: `**${typeLabels[activity.type] ?? "Unknown"}** ${activity.name}`,
         })
       );
     }
