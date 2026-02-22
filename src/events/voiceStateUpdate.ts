@@ -50,7 +50,7 @@ const event: Event<"voiceStateUpdate"> = {
     if (newState.channelId && config?.voiceMasterChannelId && newState.channelId === config.voiceMasterChannelId) {
       if (member.id !== client.user?.id) {
         // Check if user already owns a channel
-        const existing = await client.db.tempVoice.findUnique({
+        const existing = await (client.db as any).tempVoice.findUnique({
           where: { guildId_ownerId: { guildId, ownerId: member.id } }
         });
 
@@ -69,7 +69,7 @@ const event: Event<"voiceStateUpdate"> = {
               ],
             });
 
-            await client.db.tempVoice.create({
+            await (client.db as any).tempVoice.create({
               data: {
                 id: newChannel.id,
                 guildId,
@@ -89,7 +89,7 @@ const event: Event<"voiceStateUpdate"> = {
             await member.voice.setChannel(existing.id).catch(() => {});
           } else {
             // Stale database entry
-            await client.db.tempVoice.delete({ where: { id: existing.id } }).catch(() => {});
+            await (client.db as any).tempVoice.delete({ where: { id: existing.id } }).catch(() => {});
             await createTempVoice();
           }
         } else {
@@ -103,13 +103,13 @@ const event: Event<"voiceStateUpdate"> = {
       const channel = oldState.channel;
       if (channel && channel.members.size === 0) {
         // Check if it's a TempVoice
-        const tempVoice = await client.db.tempVoice.findUnique({
+        const tempVoice = await (client.db as any).tempVoice.findUnique({
           where: { id: oldState.channelId },
         });
 
         if (tempVoice) {
           await channel.delete().catch(() => {});
-          await client.db.tempVoice.delete({ where: { id: oldState.channelId } }).catch(() => {});
+          await (client.db as any).tempVoice.delete({ where: { id: oldState.channelId } }).catch(() => {});
         }
       }
     }
