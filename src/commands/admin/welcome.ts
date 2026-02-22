@@ -5,35 +5,35 @@ import { successMessage, errorMessage, Colors } from "../../utils/index.js";
 export default {
   data: new SlashCommandBuilder()
     .setName("welcome")
-    .setDescription("Configurer les messages de bienvenue")
+    .setDescription("Configure welcome messages")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand((sub) =>
       sub
         .setName("setup")
-        .setDescription("Configurer le message de bienvenue")
+        .setDescription("Configure the welcome message")
         .addChannelOption((opt) =>
           opt
             .setName("channel")
-            .setDescription("Channel pour les messages de bienvenue")
+            .setDescription("Channel for welcome messages")
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(true)
         )
         .addStringOption((opt) =>
           opt
             .setName("message")
-            .setDescription("Message de bienvenue (utilise {user}, {username}, {server}, {memberCount})")
+            .setDescription("Welcome message (use {user}, {username}, {server}, {memberCount})")
             .setRequired(true)
             .setMaxLength(1000)
         )
     )
     .addSubcommand((sub) =>
-      sub.setName("disable").setDescription("Désactiver les messages de bienvenue")
+      sub.setName("disable").setDescription("Disable welcome messages")
     )
     .addSubcommand((sub) =>
-      sub.setName("show").setDescription("Voir la configuration actuelle")
+      sub.setName("show").setDescription("View current configuration")
     )
     .addSubcommand((sub) =>
-      sub.setName("test").setDescription("Tester le message de bienvenue")
+      sub.setName("test").setDescription("Test the welcome message")
     ),
 
   async execute(interaction, client) {
@@ -59,21 +59,21 @@ export default {
 
       return interaction.reply(
         successMessage({
-          title: "👋 Bienvenue configuré",
+          title: "👋 Welcome Configured",
           description: [
             `**Channel:** <#${channel.id}>`,
             "",
             "**Message:**",
             `\`\`\`${message}\`\`\``,
             "",
-            "**Variables disponibles:**",
-            "• `{user}` - Mention du membre",
-            "• `{username}` - Nom du membre",
-            "• `{tag}` - Tag complet (User#1234)",
-            "• `{server}` - Nom du serveur",
-            "• `{memberCount}` - Nombre de membres",
+            "**Available variables:**",
+            "• `{user}` - Member mention",
+            "• `{username}` - Member name",
+            "• `{tag}` - Full tag (User#1234)",
+            "• `{server}` - Server name",
+            "• `{memberCount}` - Member count",
             "",
-            "*Ajoute `{embed}` au début pour afficher en embed.*",
+            "*Add `{embed}` at the beginning to display as an embed.*",
           ].join("\n"),
         })
       );
@@ -90,7 +90,7 @@ export default {
       });
 
       return interaction.reply(
-        successMessage({ description: "Messages de bienvenue désactivés." })
+        successMessage({ description: "Welcome messages disabled." })
       );
     }
 
@@ -101,13 +101,13 @@ export default {
 
       if (!config?.welcomeChannel || !config?.welcomeMessage) {
         return interaction.reply({
-          ...errorMessage({ description: "Les messages de bienvenue ne sont pas configurés." }),
+          ...errorMessage({ description: "Welcome messages are not configured." }),
           ephemeral: true,
         });
       }
 
       const embed = new EmbedBuilder()
-        .setTitle("👋 Configuration de bienvenue")
+        .setTitle("👋 Welcome Configuration")
         .setColor(Colors.Primary)
         .addFields(
           { name: "Channel", value: `<#${config.welcomeChannel}>`, inline: true },
@@ -124,7 +124,7 @@ export default {
 
       if (!config?.welcomeChannel || !config?.welcomeMessage) {
         return interaction.reply({
-          ...errorMessage({ description: "Les messages de bienvenue ne sont pas configurés." }),
+          ...errorMessage({ description: "Welcome messages are not configured." }),
           ephemeral: true,
         });
       }
@@ -147,13 +147,13 @@ export default {
           .setTimestamp();
 
         return interaction.reply({
-          content: "**Aperçu du message de bienvenue:**",
+          content: "**Welcome message preview:**",
           embeds: [previewEmbed],
           ephemeral: true,
         });
       } else {
         return interaction.reply({
-          content: `**Aperçu du message de bienvenue:**\n\n${message}`,
+          content: `**Welcome message preview:**\n\n${message}`,
           ephemeral: true,
         });
       }
