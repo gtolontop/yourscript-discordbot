@@ -6,47 +6,47 @@ import { EmbedBuilder } from "discord.js";
 export default {
   data: new SlashCommandBuilder()
     .setName("ticketcategory")
-    .setDescription("Gère les catégories de tickets")
+    .setDescription("Manage ticket categories")
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand((sub) =>
       sub
         .setName("add")
-        .setDescription("Ajoute une catégorie de ticket")
+        .setDescription("Add a ticket category")
         .addStringOption((opt) =>
           opt
             .setName("nom")
-            .setDescription("Nom de la catégorie")
+            .setDescription("Category name")
             .setRequired(true)
             .setMaxLength(50)
         )
         .addStringOption((opt) =>
           opt
             .setName("description")
-            .setDescription("Description de la catégorie")
+            .setDescription("Category description")
             .setRequired(false)
             .setMaxLength(100)
         )
         .addStringOption((opt) =>
           opt
             .setName("emoji")
-            .setDescription("Emoji de la catégorie")
+            .setDescription("Category emoji")
             .setRequired(false)
         )
     )
     .addSubcommand((sub) =>
       sub
         .setName("remove")
-        .setDescription("Supprime une catégorie de ticket")
+        .setDescription("Remove a ticket category")
         .addStringOption((opt) =>
           opt
             .setName("nom")
-            .setDescription("Nom de la catégorie à supprimer")
+            .setDescription("Name of the category to remove")
             .setRequired(true)
             .setAutocomplete(true)
         )
     )
     .addSubcommand((sub) =>
-      sub.setName("list").setDescription("Liste les catégories de tickets")
+      sub.setName("list").setDescription("List ticket categories")
     ),
 
   async execute(interaction, client) {
@@ -65,7 +65,7 @@ export default {
 
       if (existing) {
         return interaction.reply({
-          ...errorMessage({ description: `La catégorie **${name}** existe déjà.` }),
+          ...errorMessage({ description: `The category **${name}** already exists.` }),
           ephemeral: true,
         });
       }
@@ -82,7 +82,7 @@ export default {
 
       return interaction.reply(
         successMessage({
-          description: `Catégorie **${emoji ? emoji + " " : ""}${name}** créée avec succès.`,
+          description: `Category **${emoji ? emoji + " " : ""}${name}** created successfully.`,
         })
       );
     }
@@ -96,7 +96,7 @@ export default {
 
       if (!category) {
         return interaction.reply({
-          ...errorMessage({ description: `La catégorie **${name}** n'existe pas.` }),
+          ...errorMessage({ description: `The category **${name}** does not exist.` }),
           ephemeral: true,
         });
       }
@@ -107,7 +107,7 @@ export default {
 
       return interaction.reply(
         successMessage({
-          description: `Catégorie **${name}** supprimée.`,
+          description: `Category **${name}** deleted.`,
         })
       );
     }
@@ -121,14 +121,14 @@ export default {
       if (categories.length === 0) {
         return interaction.reply({
           ...errorMessage({
-            description: "Aucune catégorie de ticket configurée.\nUtilise `/ticketcategory add` pour en créer une.",
+            description: "No ticket categories configured.\nUse `/ticketcategory add` to create one.",
           }),
           ephemeral: true,
         });
       }
 
       const embed = new EmbedBuilder()
-        .setTitle("📁 Catégories de tickets")
+        .setTitle("📁 Ticket Categories")
         .setDescription(
           categories
             .map((cat, i) => {
@@ -139,7 +139,7 @@ export default {
             .join("\n\n")
         )
         .setColor(Colors.Primary)
-        .setFooter({ text: `${categories.length} catégorie(s)` });
+        .setFooter({ text: `${categories.length} category/categories` });
 
       return interaction.reply({ embeds: [embed] });
     }
