@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, PermissionFlagsBits, TextChannel } from "discord.js";
 import type { Command } from "../../types/index.js";
-import { errorMessage, successMessage } from "../../utils/index.js";
+import { errorMessage, successMessage, logger } from "../../utils/index.js";
 import { ModerationService } from "../../services/ModerationService.js";
 
 export default {
@@ -60,7 +60,7 @@ export default {
         })
       );
     } catch (error) {
-      console.error(error);
+      logger.error(`/clear failed in ${interaction.guild?.name}:`, error);
       await interaction.editReply(
         errorMessage({ description: "Impossible de supprimer les messages." })
       );
