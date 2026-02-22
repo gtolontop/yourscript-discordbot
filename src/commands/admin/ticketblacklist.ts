@@ -5,38 +5,38 @@ import { successMessage, errorMessage, Colors } from "../../utils/index.js";
 export default {
   data: new SlashCommandBuilder()
     .setName("ticketblacklist")
-    .setDescription("Gère la blacklist des tickets")
+    .setDescription("Manage the ticket blacklist")
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand((sub) =>
       sub
         .setName("add")
-        .setDescription("Ajoute un utilisateur à la blacklist")
+        .setDescription("Add a user to the blacklist")
         .addUserOption((opt) =>
           opt
             .setName("utilisateur")
-            .setDescription("L'utilisateur à blacklist")
+            .setDescription("The user to blacklist")
             .setRequired(true)
         )
         .addStringOption((opt) =>
           opt
             .setName("raison")
-            .setDescription("Raison de la blacklist")
+            .setDescription("Reason for the blacklist")
             .setRequired(false)
         )
     )
     .addSubcommand((sub) =>
       sub
         .setName("remove")
-        .setDescription("Retire un utilisateur de la blacklist")
+        .setDescription("Remove a user from the blacklist")
         .addUserOption((opt) =>
           opt
             .setName("utilisateur")
-            .setDescription("L'utilisateur à retirer")
+            .setDescription("The user to remove")
             .setRequired(true)
         )
     )
     .addSubcommand((sub) =>
-      sub.setName("list").setDescription("Liste les utilisateurs blacklistés")
+      sub.setName("list").setDescription("List blacklisted users")
     ),
 
   async execute(interaction, client) {
@@ -54,7 +54,7 @@ export default {
 
       if (existing) {
         return interaction.reply({
-          ...errorMessage({ description: `${user} est déjà blacklisté.` }),
+          ...errorMessage({ description: `${user} is already blacklisted.` }),
           ephemeral: true,
         });
       }
@@ -71,7 +71,7 @@ export default {
 
       return interaction.reply(
         successMessage({
-          description: `${user} a été ajouté à la blacklist des tickets.${reason ? `\n**Raison:** ${reason}` : ""}`,
+          description: `${user} has been added to the ticket blacklist.${reason ? `\n**Reason:** ${reason}` : ""}`,
         })
       );
     }
@@ -85,7 +85,7 @@ export default {
 
       if (!blacklist) {
         return interaction.reply({
-          ...errorMessage({ description: `${user} n'est pas blacklisté.` }),
+          ...errorMessage({ description: `${user} is not blacklisted.` }),
           ephemeral: true,
         });
       }
@@ -96,7 +96,7 @@ export default {
 
       return interaction.reply(
         successMessage({
-          description: `${user} a été retiré de la blacklist des tickets.`,
+          description: `${user} has been removed from the ticket blacklist.`,
         })
       );
     }
@@ -109,7 +109,7 @@ export default {
 
       if (blacklisted.length === 0) {
         return interaction.reply({
-          ...errorMessage({ description: "Aucun utilisateur blacklisté." }),
+          ...errorMessage({ description: "No blacklisted users." }),
           ephemeral: true,
         });
       }
@@ -119,17 +119,17 @@ export default {
           const user = await client.users.fetch(bl.userId).catch(() => null);
           const addedBy = await client.users.fetch(bl.addedBy).catch(() => null);
           let line = `**${i + 1}.** ${user?.tag ?? bl.userId}`;
-          if (bl.reason) line += `\n   └ Raison: *${bl.reason}*`;
-          line += `\n   └ Par: ${addedBy?.tag ?? bl.addedBy}`;
+          if (bl.reason) line += `\n   └ Reason: *${bl.reason}*`;
+          line += `\n   └ By: ${addedBy?.tag ?? bl.addedBy}`;
           return line;
         })
       );
 
       const embed = new EmbedBuilder()
-        .setTitle("🚫 Blacklist des tickets")
+        .setTitle("🚫 Ticket Blacklist")
         .setDescription(lines.join("\n\n"))
         .setColor(Colors.Error)
-        .setFooter({ text: `${blacklisted.length} utilisateur(s)` });
+        .setFooter({ text: `${blacklisted.length} user(s)` });
 
       return interaction.reply({ embeds: [embed] });
     }
