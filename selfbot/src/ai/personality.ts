@@ -299,10 +299,7 @@ export function getDMSystemPrompt(
 
   let prompt = `${base}\n\n${dmPrompt}`;
 
-  if (context) {
-    prompt += `\n\n${context}`;
-  }
-
+  // Knowledge base FIRST
   if (knowledge && knowledge.length > 0) {
     const sections: Record<string, string[]> = {};
     for (const item of knowledge) {
@@ -324,6 +321,11 @@ export function getDMSystemPrompt(
       prompt += `\n\n${label}:\n${entries.join("\n")}`;
     }
     prompt += "\n--- END KNOWLEDGE BASE ---";
+  }
+
+  // Context LAST
+  if (context) {
+    prompt += `\n\n${context}`;
   }
 
   const langNames: Record<SupportedLanguage, string> = { en: "English", fr: "French", es: "Spanish", de: "German", pt: "Portuguese" };
