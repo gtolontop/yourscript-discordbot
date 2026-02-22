@@ -35,14 +35,21 @@ model Guild {
   id               String  @id // Discord guild ID
 
   // Log channels
-  logCategoryId      String? // Category ID for all log channels
-  allLogsChannel     String? // All logs combined
-  modLogsChannel     String? // Ban, kick, mute, warn, unmute
-  msgLogsChannel     String? // Message delete, edit
-  voiceLogsChannel   String? // Voice join, leave, move
-  memberLogsChannel  String? // Member join, leave, role changes
-  serverLogsChannel  String? // Channel/role create/delete, server settings
+  logCategoryId        String? // Category ID for all log channels
+  allLogsChannel       String? // All logs combined
+  modLogsChannel       String? // Ban, kick, mute, warn, unmute, clear
+  msgLogsChannel       String? // Message delete, edit, bulk delete, pin
+  voiceLogsChannel     String? // Voice join, leave, move, mute, deafen, stream, camera
+  memberLogsChannel    String? // Role changes, nickname, avatar, timeout
+  serverLogsChannel    String? // Channel/role CRUD, guild settings
   dashboardLogsChannel String? // Dashboard activity logs
+  joinLeaveLogsChannel String? // Member join/leave
+  banLogsChannel       String? // Ban/unban events
+  inviteLogsChannel    String? // Invite create/delete
+  threadLogsChannel    String? // Thread create/delete/update
+  emojiLogsChannel     String? // Emoji create/delete/update
+  boostLogsChannel     String? // Server boost/unboost
+  cmdLogsChannel       String? // Command execution logs
 
   // Ticket system
   ticketCategoryId      String? // Category for ticket channels
@@ -56,6 +63,9 @@ model Guild {
   ticketModalLabel      String  @default("Sujet (optionnel)")
   ticketModalPlaceholder String @default("Décris brièvement ton problème...")
   ticketModalRequired   Boolean @default(false)
+
+  // Ghost ping on join
+  ghostPingChannels   String? // JSON array of channel IDs for ghost ping
 
   // Other channels
   levelUpChannel      String? // Channel pour les annonces de level up
@@ -71,6 +81,15 @@ model Guild {
   xpCooldown       Int     @default(60) // Seconds between XP gains
   xpMin            Int     @default(15)
   xpMax            Int     @default(25)
+
+  // AI settings
+  aiEnabled       Boolean @default(false)
+  aiAutoRespond   Boolean @default(true)
+  aiResponseDelay Int     @default(3)
+  aiUrgentChannel String?
+  aiTodoChannel   String?
+  aiDmLogChannel  String? // Channel for DM log threads
+
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   voiceSession     VoiceSession?
@@ -243,4 +262,201 @@ model DashboardLog {
   createdAt   DateTime @default(now())
 
   @@index([guildId, timestamp])
+}
+
+model BotConfig {
+  id            String   @id @default("bot") // Singleton
+  statusType    String?  // playing, watching, listening, competing, streaming
+  statusText    String?  // Status text
+  statusUrl     String?  // Stream URL (for streaming type)
+  updatedAt     DateTime @updatedAt
+}
+
+model Service {
+  id          Int      @id @default(autoincrement())
+  guildId     String
+  name        String   // Service name (e.g., "Site Web", "Bot Discord")
+  emoji       String?  // Emoji for the service
+  description String   // Service description
+  price       String?  // Price (e.g., "À partir de 50€", "Sur devis")
+  features    String   @default("[]") // JSON array of features
+  category    String   @default("other") // fivem, web, design, other
+  position    Int      @default(0) // Order position
+  createdAt   DateTime @default(now())
+
+  @@unique([guildId, name])
+}
+
+model ServicePanel {
+  id          Int      @id @default(autoincrement())
+  guildId     String   @unique
+  channelId   String?  // Channel where the panel is
+  messageId   String?  // Message ID of the panel
+  title       String   @default("Nos Services")
+  description String?  // Optional description
+  color       Int      @default(5793266) // Default blurple
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Rule {
+  id          Int      @id @default(autoincrement())
+  guildId     String
+  number      Int      // Rule number
+  title       String   // Rule title
+  description String   // Rule description
+  createdAt   DateTime @default(now())
+
+  @@unique([guildId, number])
+}
+
+model RulesPanel {
+  id          Int      @id @default(autoincrement())
+  guildId     String   @unique
+  channelId   String?  // Channel where the panel is
+  messageId   String?  // Message ID of the panel
+  title       String   @default("Règlement du Serveur")
+  footer      String?  // Footer text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model TeamMember {
+  id          Int      @id @default(autoincrement())
+  guildId     String
+  userId      String
+  name        String
+  role        String   // owner, developer, designer, support, manager
+  specialties String   @default("[]") // JSON array: ["fivem","discord","web"]
+  available   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  @@unique([guildId, userId])
+}
+
+model Todo {
+  id           Int       @id @default(autoincrement())
+  guildId      String
+  title        String
+  description  String?
+  priority     String    @default("normal") // low, normal, high, urgent
+  status       String    @default("open")   // open, in_progress, done, cancelled
+  assigneeId   String?
+  fromTicketId Int?
+  dueDate      DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  @@index([guildId, status])
+  @@index([assigneeId, status])
+}
+
+model TicketSummary {
+  id           Int      @id @default(autoincrement())
+  ticketId     Int
+  channelId    String
+  guildId      String
+  summary      String   // Current cumulative summary
+  keyPoints    String   @default("[]") // JSON array of key points
+  sentiment    String   @default("neutral") // overall sentiment temperature
+  trend        String   @default("stable") // improving, stable, declining
+  suggestions  String   @default("[]") // JSON array of things to say/do next
+  messageCount Int      @default(0) // Messages summarized so far
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  @@unique([ticketId])
+  @@index([channelId])
+}
+
+model AIMemory {
+  id             Int       @id @default(autoincrement())
+  guildId        String
+  userId         String
+  type           String    // preference, interaction, note, issue
+  content        String
+  embedding      String?   // JSON float32 array
+  embeddingModel String?   // Model that generated the embedding
+  importance     Int       @default(5) // 1-10
+  createdAt      DateTime  @default(now())
+  expiresAt      DateTime?
+  @@index([guildId, userId])
+}
+
+model AIKnowledge {
+  id        Int      @id @default(autoincrement())
+  guildId   String
+  category  String   // business, glossary, instructions, faq, product
+  key       String
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guildId, key])
+  @@index([guildId, category])
+}
+
+model AIRequestLog {
+  id           Int      @id @default(autoincrement())
+  model        String
+  tokensIn     Int
+  tokensOut    Int
+  cachedTokens Int      @default(0)
+  cost         Float
+  latencyMs    Int
+  taskType     String
+  ticketId     String?
+  guildId      String?
+  date         String   // YYYY-MM-DD
+  createdAt    DateTime @default(now())
+
+  @@index([date])
+  @@index([ticketId])
+  @@index([guildId, date])
+}
+
+model AIBudgetDay {
+  id               Int      @id @default(autoincrement())
+  date             String   @unique
+  totalSpend       Float    @default(0)
+  totalRequests    Int      @default(0)
+  totalTokensIn    Int      @default(0)
+  totalTokensOut   Int      @default(0)
+  totalCached      Int      @default(0)
+  avgCostPerTicket Float    @default(0)
+  byModel          String   @default("{}")
+  byTaskType       String   @default("{}")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model AITicketCost {
+  id         Int       @id @default(autoincrement())
+  ticketId   Int
+  channelId  String
+  guildId    String
+  totalCost  Float     @default(0)
+  totalCalls Int       @default(0)
+  modelsUsed String    @default("[]")
+  startedAt  DateTime  @default(now())
+  closedAt   DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([ticketId])
+  @@index([guildId])
+}
+
+model AIReminder {
+  id           Int       @id @default(autoincrement())
+  guildId      String?
+  userId       String
+  targetUserId String?
+  content      String
+  channelId    String?   // null = DM
+  triggerAt    DateTime
+  fired        Boolean   @default(false)
+  sourceType   String    @default("ticket") // ticket, dm, manual
+  sourceId     String?
+  createdAt    DateTime  @default(now())
+  @@index([triggerAt, fired])
+  @@index([userId])
 }
