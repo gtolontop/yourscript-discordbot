@@ -49,23 +49,33 @@ export default {
       // Field doesn't exist via getTextInputValue
     }
 
-    // Fallback: manually parse raw interaction data if fields are empty
-    if (!subject && !username && !serverIp && !description && (interaction as any).data?.components) {
-      const rawComponents = (interaction as any).data.components as any[];
-      const fieldMap = new Map<string, string>();
+    // Debug: log the interaction structure
+    logger.info(`[MODAL] Interaction type: ${interaction.constructor.name}`);
+    logger.info(`[MODAL] Fields collection size: ${interaction.fields.fields?.size ?? 0}`);
 
-      for (const row of rawComponents) {
-        for (const component of row.components || []) {
-          if (component.custom_id && component.value) {
-            fieldMap.set(component.custom_id, component.value);
+    // Fallback: manually parse raw interaction data if fields are empty
+    if (!subject && !username && !serverIp && !description) {
+      const rawData = (interaction as any).data;
+      logger.info(`[MODAL] Raw data keys: ${rawData ? Object.keys(rawData).join(", ") : "no data"}`);
+      logger.info(`[MODAL] Raw components: ${JSON.stringify(rawData?.components)}`);
+
+      if (rawData?.components) {
+        const rawComponents = rawData.components as any[];
+        const fieldMap = new Map<string, string>();
+
+        for (const row of rawComponents) {
+          for (const component of row.components || []) {
+            if (component.custom_id && component.value) {
+              fieldMap.set(component.custom_id, component.value);
+            }
           }
         }
-      }
 
-      subject = fieldMap.get("subject")?.trim() || undefined;
-      username = fieldMap.get("username")?.trim() || undefined;
-      serverIp = fieldMap.get("server_ip")?.trim() || undefined;
-      description = fieldMap.get("description")?.trim() || undefined;
+        subject = fieldMap.get("subject")?.trim() || undefined;
+        username = fieldMap.get("username")?.trim() || undefined;
+        serverIp = fieldMap.get("server_ip")?.trim() || undefined;
+        description = fieldMap.get("description")?.trim() || undefined;
+      }
     }
 
     // Debug logging for modal submission
@@ -74,10 +84,9 @@ export default {
       username: username ?? "(empty)",
       serverIp: serverIp ?? "(empty)",
       description: description ?? "(empty)",
-      rawComponents: interaction.components?.length ?? 0,
-      hasRawData: !!(interaction as any).data?.components
+      rawComponents: interaction.components?.length ?? 0
     };
-    logger.info(`[MODAL] Ticket submission: ${JSON.stringify(fieldsDebug)}`);
+    logger.info(`[MODAL] Ticket submission result: ${JSON.stringify(fieldsDebug)}`);
 
     // Check if user already has an open ticket
     const existingTicket = await client.db.ticket.findFirst({
