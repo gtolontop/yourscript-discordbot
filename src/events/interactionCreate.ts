@@ -74,8 +74,12 @@ export default {
 
       let button = client.buttons.get(interaction.customId);
       if (!button) {
-        const prefix = interaction.customId.split("_").slice(0, 2).join("_");
-        button = client.buttons.get(prefix);
+        const parts = interaction.customId.split("_");
+        const prefix2 = parts.slice(0, 2).join("_");
+        button = client.buttons.get(prefix2);
+        if (!button && parts.length >= 2) {
+          button = client.buttons.get(parts[0]!);
+        }
       }
       if (!button) {
         for (const [key, btn] of client.buttons) {
