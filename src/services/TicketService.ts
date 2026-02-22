@@ -13,7 +13,7 @@ import {
   AttachmentBuilder,
 } from "discord.js";
 import type { Bot } from "../client/Bot.js";
-import { createMessage, successMessage, errorMessage, Colors } from "../utils/index.js";
+import { createMessage, successMessage, errorMessage, Colors, logger } from "../utils/index.js";
 
 export class TicketService {
   constructor(private client: Bot) {}
@@ -79,7 +79,7 @@ export class TicketService {
       name: channelName,
       type: ChannelType.GuildText,
       parent: config.ticketCategoryId,
-      topic: `Ticket de ${user.tag} | ${category ?? "Général"} | ${subject ?? "Pas de sujet"}`,
+      topic: `Ticket by ${user.tag} | ${category ?? "General"} | ${subject ?? "No subject"}`,
       permissionOverwrites,
     });
 
@@ -90,8 +90,8 @@ export class TicketService {
         channelId: channel.id,
         userId: user.id,
         guildId: guild.id,
-        category,
-        subject,
+        category: category ?? null,
+        subject: subject ?? null,
       },
     });
 
@@ -99,28 +99,28 @@ export class TicketService {
     const welcomeEmbed = new EmbedBuilder()
       .setTitle(`🎫 Ticket #${ticketNumber.toString().padStart(4, "0")}`)
       .setDescription([
-        `Bienvenue ${user.toString()} !`,
+        `Welcome ${user.toString()}!`,
         "",
-        category ? `**Catégorie:** ${category}` : null,
-        subject ? `**Sujet:** ${subject}` : null,
-        `**Priorité:** 🟡 Normale`,
+        category ? `**Category:** ${category}` : null,
+        subject ? `**Subject:** ${subject}` : null,
+        `**Priority:** 🟡 Normal`,
         "",
-        "Un membre du staff va te répondre bientôt.",
+        "A staff member will respond soon.",
       ].filter(Boolean).join("\n"))
       .setColor(Colors.Primary)
-      .setFooter({ text: "Staff: Utilise les boutons ci-dessous ou /ticket" })
+      .setFooter({ text: "Staff: Use the buttons below or /ticket" })
       .setTimestamp();
 
     // Build action buttons
     const ticketButtons = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
         .setCustomId("ticket_claim")
-        .setLabel("Prendre en charge")
+        .setLabel("Claim")
         .setStyle(ButtonStyle.Success)
         .setEmoji("✋"),
       new ButtonBuilder()
         .setCustomId("ticket_close")
-        .setLabel("Fermer")
+        .setLabel("Close")
         .setStyle(ButtonStyle.Danger)
         .setEmoji("🔒")
     );
@@ -136,6 +136,22 @@ export class TicketService {
       components: [ticketButtons],
     });
 
+    // Emit ticket:new to AI namespace
+    if (this.client.aiNamespace) {
+      const ticket = await this.client.db.ticket.findUnique({ where: { channelId: channel.id } });
+      if (ticket) {
+        this.client.aiNamespace.emit("ticket:new", {
+          id: ticket.id,
+          channelId: channel.id,
+          guildId: guild.id,
+          userId: user.id,
+          category: category ?? null,
+          subject: subject ?? null,
+          number: ticketNumber,
+        });
+      }
+    }
+
     return channel;
   }
 
@@ -147,7 +163,7 @@ export class TicketService {
       where: { channelId: channel.id },
     });
 
-    if (!ticket || ticket.status !== "open") return false;
+    if (!ticket || (ticket.status !== "open" && ticket.status !== "closed")) return false;
 
     // Update ticket status
     await this.client.db.ticket.update({
@@ -175,7 +191,7 @@ export class TicketService {
         guildId: ticket.guildId,
         guildName: guild.name,
         userId: ticket.userId,
-        userName: ticketUser?.tag ?? "Inconnu",
+        userName: ticketUser?.tag ?? "Unknown",
         closedBy: closedBy.id,
         closedByName: closedBy.tag,
         subject: ticket.subject,
@@ -186,7 +202,7 @@ export class TicketService {
     });
 
     // Get web URL from env or default
-    const webUrl = process.env.WEB_URL ?? `http://localhost:${process.env.WEB_PORT ?? 3000}`;
+    const webUrl = process.env['WEB_URL'] ?? `http://localhost:${process.env['WEB_PORT'] ?? 3000}`;
     const transcriptUrl = `${webUrl}/transcript/${savedTranscript.id}`;
 
     // Also create file attachment as backup
@@ -194,50 +210,211 @@ export class TicketService {
       name: `transcript-ticket-${ticket.number.toString().padStart(4, "0")}.html`,
     });
 
+    // Get early AI summary if available, and try to generate a final one
+    let aiSummary = await this.client.db.ticketSummary.findUnique({
+      where: { ticketId: ticket.id },
+    }).catch(() => null);
+
+    if (this.client.aiNamespace && this.client.aiNamespace.sockets.size > 0 && messageCount > 2) {
+      try {
+        const messages = await channel.messages.fetch({ limit: 50 }); // fetch last 50 for quick summary
+        const aiSockets = Array.from(this.client.aiNamespace.sockets.values());
+        
+        const summaryResult = await new Promise<any>((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error("Timeout")), 15000);
+          aiSockets[0]!.emit("query:generateSummary" as any, {
+            channelId: channel.id,
+            previousSummary: aiSummary?.summary ?? null,
+            messages: Array.from(messages.values()).reverse().map(m => ({
+              role: m.author.bot ? (m.author.id === this.client.user?.id ? "assistant" : "system") : "user",
+              content: m.content
+            }))
+          }, (res: any) => {
+            clearTimeout(timeout);
+            resolve(res);
+          });
+        });
+
+        if (summaryResult && summaryResult.summary && summaryResult.summary !== "Failed to generate summary") {
+          aiSummary = await this.client.db.ticketSummary.upsert({
+            where: { ticketId: ticket.id },
+            update: {
+              summary: summaryResult.summary,
+              keyPoints: JSON.stringify(summaryResult.keyPoints ?? []),
+              suggestions: JSON.stringify(summaryResult.suggestions ?? []),
+              sentiment: summaryResult.sentiment ?? "neutral",
+              trend: summaryResult.trend ?? "stable",
+              messageCount: messageCount,
+            },
+            create: {
+              ticketId: ticket.id,
+              channelId: ticket.channelId,
+              guildId: ticket.guildId,
+              summary: summaryResult.summary,
+              keyPoints: JSON.stringify(summaryResult.keyPoints ?? []),
+              suggestions: JSON.stringify(summaryResult.suggestions ?? []),
+              sentiment: summaryResult.sentiment ?? "neutral",
+              trend: summaryResult.trend ?? "stable",
+              messageCount: messageCount,
+            },
+          });
+        }
+      } catch (err) {
+        logger.error(`Failed to generate final summary for ticket ${ticket.id}:`, err);
+      }
+    }
+
     // Send transcript with review button
     if (config?.ticketTranscriptChannel) {
       const transcriptChannel = guild.channels.cache.get(config.ticketTranscriptChannel) as TextChannel;
       if (transcriptChannel) {
+        const sentimentEmoji: Record<string, string> = {
+          positive: "😊",
+          neutral: "😐",
+          negative: "😟",
+          frustrated: "😤",
+        };
+        // Get ticket cost if available
+        const ticketCost = await this.client.db.aITicketCost.findUnique({
+          where: { ticketId: ticket.id },
+        }).catch((err: any) => {
+          logger.error(`Failed to fetch ticket cost for ticket ${ticket.id}:`, err);
+          return null;
+        }) ?? { totalCost: 0 };
+
+        const descLines = [
+          `**Created by:** ${ticketUser?.tag ?? "Unknown"} (<@${ticket.userId}>)`,
+          `**Closed by:** ${closedBy.tag}`,
+          `**Subject:** ${ticket.subject ?? "None"}`,
+          `**Category:** ${ticket.category ?? "None"}`,
+          `**Messages:** ${messageCount}`,
+          `**Cost:** $${ticketCost.totalCost.toFixed(4)}`,
+        ];
+
+        if (aiSummary) {
+          const goodSentiment = aiSummary.sentiment === "positive" || aiSummary.sentiment === "neutral";
+          const autoRequestEligible = !ticket.review && !ticket.reviewRating && ticketUser && goodSentiment;
+
+          const gauge = {
+            positive: "🟩🟩🟩🟩🟩",
+            neutral: "🟨🟨🟨⬛⬛",
+            negative: "🟧🟧⬛⬛⬛",
+            frustrated: "🟥⬛⬛⬛⬛",
+          }[aiSummary.sentiment] ?? "⬛⬛⬛⬛⬛";
+
+          descLines.push(
+            "",
+            `**Satisfaction:** ${gauge} (${sentimentEmoji[aiSummary.sentiment] ?? "😐"})`,
+            `**Feedback Requested:** ${autoRequestEligible ? "✅ Auto-requested via DM" : "❌ No"}`,
+            "",
+            `**AI Summary:**`,
+            aiSummary.summary,
+          );
+
+          const keyPoints = JSON.parse(aiSummary.keyPoints) as string[];
+          if (keyPoints.length > 0) {
+            descLines.push("", `**Key Points:** ${keyPoints.join(" • ")}`);
+          }
+        }
+
+        descLines.push("", `🔗 **[View transcript online](${transcriptUrl})**`);
+
         const transcriptEmbed = new EmbedBuilder()
           .setTitle(`📜 Transcript - Ticket #${ticket.number.toString().padStart(4, "0")}`)
-          .setDescription([
-            `**Créé par:** ${ticketUser?.tag ?? "Inconnu"} (<@${ticket.userId}>)`,
-            `**Fermé par:** ${closedBy.tag}`,
-            `**Sujet:** ${ticket.subject ?? "Aucun"}`,
-            `**Catégorie:** ${ticket.category ?? "Aucune"}`,
-            `**Messages:** ${messageCount}`,
-            `**Durée:** ${this.formatDuration(ticket.createdAt, new Date())}`,
-            "",
-            `🔗 **[Voir le transcript en ligne](${transcriptUrl})**`,
-          ].join("\n"))
+          .setDescription(descLines.join("\n"))
           .setColor(Colors.Primary)
           .setTimestamp();
 
         const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
           new ButtonBuilder()
-            .setLabel("Voir en ligne")
+            .setLabel("View online")
             .setStyle(ButtonStyle.Link)
             .setURL(transcriptUrl)
             .setEmoji("🌐"),
           new ButtonBuilder()
             .setCustomId(`review_request_${ticket.id}`)
-            .setLabel("Demander un avis")
+            .setLabel("Request feedback")
             .setStyle(ButtonStyle.Primary)
             .setEmoji("💬")
         );
 
-        await transcriptChannel.send({
+        const transcriptMsg = await transcriptChannel.send({
           embeds: [transcriptEmbed],
           files: [transcriptFile],
           components: [buttons],
         });
+
+        // Smart auto-request feedback: ONLY if no review, good sentiment confirmed by AI data
+        if (!ticket.review && !ticket.reviewRating && ticketUser && aiSummary) {
+          const goodSentiment = aiSummary.sentiment === "positive" || aiSummary.sentiment === "neutral";
+
+          if (goodSentiment) {
+            try {
+              const dmEmbed = new EmbedBuilder()
+                .setTitle("💬 How was your experience?")
+                .setDescription([
+                  `Thanks for using the support of **${guild.name}**!`,
+                  "",
+                  `**Ticket:** #${ticket.number.toString().padStart(4, "0")}`,
+                  ticket.subject ? `**Subject:** ${ticket.subject}` : null,
+                  "",
+                  "We'd love to hear your feedback!",
+                ].filter(Boolean).join("\n"))
+                .setColor(Colors.Primary)
+                .setFooter({ text: guild.name });
+
+              const dmButton = new ActionRowBuilder<ButtonBuilder>().addComponents(
+                new ButtonBuilder()
+                  .setCustomId(`review_write_${ticket.id}_${ticket.guildId}`)
+                  .setLabel("Leave a review")
+                  .setStyle(ButtonStyle.Primary)
+                  .setEmoji("⭐")
+              );
+
+              await ticketUser.send({ embeds: [dmEmbed], components: [dmButton] });
+
+              await this.client.db.ticket.update({
+                where: { id: ticket.id },
+                data: { status: "review_pending" },
+              });
+
+              // Update the transcript message button to show feedback was auto-requested
+              const updatedButtons = new ActionRowBuilder<ButtonBuilder>().addComponents(
+                new ButtonBuilder()
+                  .setLabel("View online")
+                  .setStyle(ButtonStyle.Link)
+                  .setURL(transcriptUrl)
+                  .setEmoji("🌐"),
+                new ButtonBuilder()
+                  .setCustomId(`review_request_${ticket.id}`)
+                  .setLabel("Feedback auto-requested")
+                  .setStyle(ButtonStyle.Secondary)
+                  .setEmoji("✅")
+                  .setDisabled(true)
+              );
+              await transcriptMsg.edit({ components: [updatedButtons] }).catch(() => {});
+            } catch {
+              // DMs closed, no big deal
+            }
+          }
+        }
       }
     }
 
-    // Delete channel after a delay
+    // Emit ticket:close to AI namespace
+    if (this.client.aiNamespace) {
+      this.client.aiNamespace.emit("ticket:close", {
+        ticketId: ticket.id,
+        channelId: channel.id,
+        guildId: ticket.guildId,
+        closedBy: closedBy.id,
+      });
+    }
+
+    // Delete channel after a short delay
     await channel.send(
       successMessage({
-        description: "Ticket fermé. Ce channel sera supprimé dans 5 secondes...",
+        description: "Ticket closed. This channel will be deleted in 5 seconds...",
       })
     );
 
@@ -259,7 +436,7 @@ export class TicketService {
     while (messages.length < 500) {
       const fetched = await channel.messages.fetch({
         limit: 100,
-        before: lastId,
+        ...(lastId && { before: lastId }),
       });
 
       if (fetched.size === 0) break;
@@ -300,8 +477,8 @@ export class TicketService {
 
     // Generate HTML
     const messagesHtml = messages.map((msg) => {
-      const time = msg.createdAt.toLocaleString("fr-FR");
-      const author = msg.author?.tag ?? "Inconnu";
+      const time = msg.createdAt.toLocaleString("en-US");
+      const author = msg.author?.tag ?? "Unknown";
       const avatarUrl = msg.author?.displayAvatarURL({ size: 64 }) ?? "";
       const isBot = msg.author?.bot ?? false;
 
@@ -309,7 +486,7 @@ export class TicketService {
 
       // Convert user mentions <@ID> or <@!ID> to styled spans
       content = content.replace(/&lt;@!?(\d+)&gt;/g, (_, id) => {
-        const name = userCache.get(id) ?? "utilisateur";
+        const name = userCache.get(id) ?? "user";
         return `<span class="mention user">@${name}</span>`;
       });
 
@@ -319,7 +496,7 @@ export class TicketService {
         if (role) {
           return `<span class="mention role" style="color: ${role.color}; background: ${role.color}22;">@${role.name}</span>`;
         }
-        return `<span class="mention role">@rôle</span>`;
+        return `<span class="mention role">@role</span>`;
       });
 
       // Convert channel mentions <#ID> to styled spans
@@ -354,7 +531,7 @@ export class TicketService {
           let desc = this.escapeHtml(embed.description);
           // Convert mentions in embed descriptions too
           desc = desc.replace(/&lt;@!?(\d+)&gt;/g, (_, id) => {
-            const name = userCache.get(id) ?? "utilisateur";
+            const name = userCache.get(id) ?? "user";
             return `<span class="mention user">@${name}</span>`;
           });
           desc = desc.replace(/&lt;@&amp;(\d+)&gt;/g, (_, id) => {
@@ -362,7 +539,7 @@ export class TicketService {
             if (role) {
               return `<span class="mention role" style="color: ${role.color};">@${role.name}</span>`;
             }
-            return `<span class="mention role">@rôle</span>`;
+            return `<span class="mention role">@role</span>`;
           });
           // Apply markdown conversion
           desc = this.convertMarkdown(desc);
@@ -412,7 +589,7 @@ export class TicketService {
 
     const html = `
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -639,9 +816,9 @@ export class TicketService {
 <body>
   <div class="header-info">
     <h1>🎫 Transcript - Ticket #${ticketNumber.toString().padStart(4, "0")}</h1>
-    <p>Serveur: ${channel.guild.name}</p>
-    <p>Créé par: ${ticketUser?.tag ?? "Inconnu"}</p>
-    <p>Généré le: ${new Date().toLocaleString("fr-FR")}</p>
+    <p>Server: ${channel.guild.name}</p>
+    <p>Created by: ${ticketUser?.tag ?? "Unknown"}</p>
+    <p>Generated on: ${new Date().toLocaleString("en-US")}</p>
     <p>Messages: ${messages.length}</p>
   </div>
   <div class="messages">
@@ -728,10 +905,10 @@ export class TicketService {
 
     await publicChannel.send({
       ...createMessage({
-        title: "💬 Nouvel avis",
+        title: "💬 New Review",
         description: [
-          `**De:** ${user?.tag ?? "Anonyme"}`,
-          `**Note:** ${stars}`,
+          `**From:** ${user?.tag ?? "Anonymous"}`,
+          `**Rating:** ${stars}`,
           "",
           `> ${review}`,
         ].join("\n"),
@@ -804,8 +981,8 @@ export class TicketService {
         await channel.send({
           embeds: [
             new EmbedBuilder()
-              .setTitle("⏰ Fermeture automatique")
-              .setDescription("Ce ticket a été fermé automatiquement car il est inactif depuis plus de 2 jours.")
+              .setTitle("⏰ Automatic Closure")
+              .setDescription("This ticket has been automatically closed due to inactivity for over 2 days.")
               .setColor(Colors.Warning)
               .setTimestamp(),
           ],
@@ -816,7 +993,7 @@ export class TicketService {
         closedCount++;
       } catch (error) {
         // Log error but continue with other tickets
-        console.error(`Failed to auto-close ticket ${ticket.id}:`, error);
+        logger.error(`Error auto-close ticket #${ticket.id}:`, error);
       }
     }
 
@@ -841,7 +1018,7 @@ export class TicketService {
     setInterval(async () => {
       const closed = await this.autoCloseInactiveTickets();
       if (closed > 0) {
-        console.log(`[TicketService] Auto-closed ${closed} inactive ticket(s)`);
+        logger.info(`Auto-closed ${closed} inactive ticket(s)`);
       }
     }, 60 * 60 * 1000); // 1 hour
 
@@ -849,7 +1026,7 @@ export class TicketService {
     setTimeout(async () => {
       const closed = await this.autoCloseInactiveTickets();
       if (closed > 0) {
-        console.log(`[TicketService] Auto-closed ${closed} inactive ticket(s) on startup`);
+        logger.info(`Auto-close on startup: ${closed} inactive ticket(s)`);
       }
     }, 10000);
   }
