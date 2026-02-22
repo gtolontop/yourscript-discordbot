@@ -52,7 +52,14 @@ export default {
       ephemeral: true,
     });
 
-    // Store the review
+    // Close the ticket first (status must still be "open" for closeTicket to work)
+    const channel = interaction.channel as TextChannel;
+    if (channel) {
+      const ticketService = new TicketService(client);
+      await ticketService.closeTicket(channel, interaction.user);
+    }
+
+    // Store the review after closing
     await client.db.ticket.update({
       where: { id: ticketId },
       data: {
@@ -61,13 +68,6 @@ export default {
         status: "review_submitted",
       },
     });
-
-    // Now close the ticket first, so transcript and summary are generated
-    const channel = interaction.channel as TextChannel;
-    if (channel) {
-      const ticketService = new TicketService(client);
-      await ticketService.closeTicket(channel, interaction.user);
-    }
 
     // Wait a brief moment to ensure DB records are written
     await new Promise(r => setTimeout(r, 1000));

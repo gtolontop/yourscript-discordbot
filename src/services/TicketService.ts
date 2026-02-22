@@ -163,7 +163,7 @@ export class TicketService {
       where: { channelId: channel.id },
     });
 
-    if (!ticket || (ticket.status !== "open" && ticket.status !== "closed")) return false;
+    if (!ticket || (ticket.status !== "open" && ticket.status !== "closed" && ticket.status !== "review_submitted")) return false;
 
     // Update ticket status
     await this.client.db.ticket.update({

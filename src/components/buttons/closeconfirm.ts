@@ -18,7 +18,7 @@ export default {
     }
 
     const ticket = await client.db.ticket.findUnique({ where: { id: ticketId } });
-    if (!ticket || ticket.status !== "open") {
+    if (!ticket || (ticket.status !== "open" && ticket.status !== "review_submitted")) {
       return interaction.reply({
         ...errorMessage({ description: "This ticket is already closed." }),
         ephemeral: true,
