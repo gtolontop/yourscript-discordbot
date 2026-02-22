@@ -11,35 +11,35 @@ import type { Bot } from "../../client/Bot.js";
 export default {
   data: new SlashCommandBuilder()
     .setName("roleall")
-    .setDescription("Ajoute ou retire un rôle à tous les membres")
+    .setDescription("Add or remove a role from all members")
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand((sub) =>
       sub
         .setName("add")
-        .setDescription("Ajoute un rôle à tous les membres")
+        .setDescription("Add a role to all members")
         .addRoleOption((opt) =>
-          opt.setName("role").setDescription("Le rôle à ajouter").setRequired(true)
+          opt.setName("role").setDescription("The role to add").setRequired(true)
         )
         .addBooleanOption((opt) =>
-          opt.setName("bots").setDescription("Inclure les bots (défaut: non)")
+          opt.setName("bots").setDescription("Include bots (default: no)")
         )
     )
     .addSubcommand((sub) =>
       sub
         .setName("remove")
-        .setDescription("Retire un rôle de tous les membres")
+        .setDescription("Remove a role from all members")
         .addRoleOption((opt) =>
-          opt.setName("role").setDescription("Le rôle à retirer").setRequired(true)
+          opt.setName("role").setDescription("The role to remove").setRequired(true)
         )
         .addBooleanOption((opt) =>
-          opt.setName("bots").setDescription("Inclure les bots (défaut: non)")
+          opt.setName("bots").setDescription("Include bots (default: no)")
         )
     )
     .addSubcommand((sub) =>
-      sub.setName("resume").setDescription("Reprendre un job interrompu")
+      sub.setName("resume").setDescription("Resume an interrupted job")
     )
     .addSubcommand((sub) =>
-      sub.setName("status").setDescription("Voir les jobs en cours/pausés")
+      sub.setName("status").setDescription("View running/paused jobs")
     ),
 
   async execute(interaction, client) {
@@ -56,7 +56,7 @@ export default {
 
       if (jobs.length === 0) {
         return interaction.reply(
-          warningMessage({ description: "Aucun job en cours ou en pause." })
+          warningMessage({ description: "No running or paused jobs." })
         );
       }
 
@@ -69,7 +69,7 @@ export default {
 
       return interaction.reply(
         createMessage({
-          title: "📋 Jobs roleall",
+          title: "📋 Roleall Jobs",
           description: lines.join("\n"),
           color: "Primary",
         })
@@ -88,7 +88,7 @@ export default {
 
       if (!pausedJob) {
         return interaction.reply({
-          ...errorMessage({ description: "Aucun job en pause à reprendre." }),
+          ...errorMessage({ description: "No paused jobs to resume." }),
           ephemeral: true,
         });
       }
@@ -110,21 +110,21 @@ export default {
     const botMember = guild.members.me;
     if (!botMember) {
       return interaction.reply({
-        ...errorMessage({ description: "Impossible de récupérer mes informations." }),
+        ...errorMessage({ description: "Unable to retrieve my information." }),
         ephemeral: true,
       });
     }
 
     if (role.position >= botMember.roles.highest.position) {
       return interaction.reply({
-        ...errorMessage({ description: "Ce rôle est plus haut que mon rôle le plus élevé." }),
+        ...errorMessage({ description: "This role is higher than my highest role." }),
         ephemeral: true,
       });
     }
 
     if (role.managed) {
       return interaction.reply({
-        ...errorMessage({ description: "Ce rôle est géré par une intégration et ne peut pas être modifié." }),
+        ...errorMessage({ description: "This role is managed by an integration and cannot be modified." }),
         ephemeral: true,
       });
     }
@@ -139,7 +139,7 @@ export default {
 
     if (existingJob) {
       return interaction.reply({
-        ...errorMessage({ description: "Un job est déjà en cours. Attends qu'il se termine ou utilise `/roleall status`." }),
+        ...errorMessage({ description: "A job is already running. Wait for it to finish or use `/roleall status`." }),
         ephemeral: true,
       });
     }
@@ -162,8 +162,8 @@ export default {
 
     if (memberIds.length === 0) {
       const msg = action === "add"
-        ? "Tous les membres ont déjà ce rôle."
-        : "Aucun membre n'a ce rôle.";
+        ? "All members already have this role."
+        : "No members have this role.";
       return interaction.editReply(warningMessage({ description: msg }));
     }
 
@@ -184,18 +184,18 @@ export default {
     // Send initial message
     const reply = await interaction.editReply(
       createMessage({
-        title: action === "add" ? "➕ Ajout du rôle en cours..." : "➖ Retrait du rôle en cours...",
+        title: action === "add" ? "➕ Adding role..." : "➖ Removing role...",
         description: [
-          `**Rôle:** ${role.name}`,
+          `**Role:** ${role.name}`,
           `**Job ID:** #${job.id}`,
           "",
           `░░░░░░░░░░ 0%`,
           "",
-          `✅ Succès: 0`,
-          `❌ Échecs: 0`,
+          `✅ Success: 0`,
+          `❌ Failures: 0`,
           `📊 Total: 0/${memberIds.length}`,
           "",
-          `-# Si interrompu, utilise \`/roleall resume\` pour reprendre`,
+          `-# If interrupted, use \`/roleall resume\` to continue`,
         ].join("\n"),
         color: "Primary",
       })
@@ -257,18 +257,18 @@ export async function processRoleAllJob(client: Bot, jobId: number): Promise<voi
         const message = await channel.messages.fetch(job.messageId);
         await message.edit(
           createMessage({
-            title: job.action === "add" ? "➕ Ajout du rôle en cours..." : "➖ Retrait du rôle en cours...",
+            title: job.action === "add" ? "➕ Adding role..." : "➖ Removing role...",
             description: [
-              `**Rôle:** ${role.name}`,
+              `**Role:** ${role.name}`,
               `**Job ID:** #${job.id}`,
               "",
               `${bar} ${percent}%`,
               "",
-              `✅ Succès: ${success}`,
-              `❌ Échecs: ${failed}`,
+              `✅ Success: ${success}`,
+              `❌ Failures: ${failed}`,
               `📊 Total: ${processed}/${total}`,
               "",
-              `-# Si interrompu, utilise \`/roleall resume\` pour reprendre`,
+              `-# If interrupted, use \`/roleall resume\` to continue`,
             ].join("\n"),
             color: "Primary",
           })
@@ -336,13 +336,13 @@ export async function processRoleAllJob(client: Bot, jobId: number): Promise<voi
       const message = await channel.messages.fetch(job.messageId);
       await message.edit(
         successMessage({
-          title: job.action === "add" ? "➕ Rôle ajouté" : "➖ Rôle retiré",
+          title: job.action === "add" ? "➕ Role Added" : "➖ Role Removed",
           description: [
-            `**Rôle:** ${role.name}`,
+            `**Role:** ${role.name}`,
             `**Job ID:** #${job.id}`,
             "",
-            `✅ **${success}** membres ${job.action === "add" ? "ont reçu" : "ont perdu"} le rôle`,
-            failed > 0 ? `❌ **${failed}** échecs` : null,
+            `✅ **${success}** members ${job.action === "add" ? "received" : "lost"} the role`,
+            failed > 0 ? `❌ **${failed}** failures` : null,
           ].filter(Boolean).join("\n"),
         })
       );
@@ -359,7 +359,7 @@ export async function resumeRoleAllJob(client: Bot, jobId: number, channel?: Tex
     where: { id: jobId },
     data: {
       status: "running",
-      channelId: channel?.id ?? undefined,
+      ...(channel && { channelId: channel.id }),
     },
   });
 
@@ -371,11 +371,11 @@ export async function resumeRoleAllJob(client: Bot, jobId: number, channel?: Tex
 
     const reply = await channel.send(
       createMessage({
-        title: "🔄 Reprise du job...",
+        title: "🔄 Resuming job...",
         description: [
-          `**Rôle:** ${role?.name ?? "Inconnu"}`,
+          `**Role:** ${role?.name ?? "Unknown"}`,
           `**Job ID:** #${job.id}`,
-          `**Restant:** ${remaining} membres`,
+          `**Remaining:** ${remaining} members`,
         ].join("\n"),
         color: "Primary",
       })
