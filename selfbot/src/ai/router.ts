@@ -21,19 +21,19 @@ interface ModelConfig {
 
 const MODEL_TABLE: Record<TaskType, ModelConfig> = {
   classification: {
-    model: "google/gemini-2.5-flash",
+    model: "google/gemini-2.5-flash-lite",
     fallback: "openai/gpt-4o-mini",
     rpm: 500,
     rpd: 50000,
   },
   sentiment: {
-    model: "google/gemini-2.5-flash",
+    model: "google/gemini-2.5-flash-lite",
     fallback: "openai/gpt-4o-mini",
     rpm: 500,
     rpd: 50000,
   },
   quick_response: {
-    model: "google/gemini-2.5-flash",
+    model: "google/gemini-2.5-flash-lite",
     fallback: "deepseek/deepseek-v3.2",
     rpm: 200,
     rpd: 10000,
@@ -51,7 +51,7 @@ const MODEL_TABLE: Record<TaskType, ModelConfig> = {
     rpd: 10000,
   },
   summary: {
-    model: "google/gemini-2.5-flash",
+    model: "google/gemini-2.5-flash-lite",
     fallback: "openai/gpt-4o-mini",
     rpm: 500,
     rpd: 50000,
@@ -62,7 +62,7 @@ const MODEL_TABLE: Record<TaskType, ModelConfig> = {
     rpd: 50000,
   },
   action_detection: {
-    model: "google/gemini-2.5-flash",
+    model: "google/gemini-2.5-flash-lite",
     fallback: "openai/gpt-4o-mini",
     rpm: 500,
     rpd: 50000,
@@ -74,7 +74,7 @@ const MODEL_TABLE: Record<TaskType, ModelConfig> = {
     rpd: 10000,
   },
   memory_extraction: {
-    model: "google/gemini-2.5-flash",
+    model: "google/gemini-2.5-flash-lite",
     fallback: "openai/gpt-4o-mini",
     rpm: 500,
     rpd: 50000,
