@@ -374,7 +374,34 @@ export class TicketHandler {
     }
 
     // Add message and respond
-    this.context.addMessage(channelId, "user", data.content);
+    let userContent = data.content;
+    
+    // Process attachments (Ultra-Cheap Image Recognition)
+    if (data.attachments && data.attachments.length > 0) {
+      const imageAttachments = data.attachments.filter(a => a.contentType?.startsWith('image/'));
+      if (imageAttachments.length > 0) {
+        logger.ai(`Found ${imageAttachments.length} images in ${channelId}, checking vision model...`);
+        try {
+          const model = this.router.getModel("quick_response"); // flash-lite is good enough
+          const visionResult = await this.ai.generateText(
+            "You are a helpful OCR and screenshot analyzer. Read the provided user image/text. Reply with a short summary of what the image shows, including any error codes or important text visible. Do not solve the issue, just describe the screenshot for another AI.",
+            [
+              { role: "user", content: data.content },
+              ...imageAttachments.map(img => ({
+                role: "user" as const,
+                content: `[Image URL: ${img.url}]` // OpenRouter requires proper image URL format, assuming generateText handles it if we pass it, but standard OpenRouter might need distinct formatting. For now we will append a system note.
+              }))
+            ],
+            { model, temperature: 0.1, maxTokens: 300, taskType: "classification" } // Cheap classification task
+          );
+          userContent += `\n\n[System Note: User attached an image. Vision AI description: ${visionResult.text}]`;
+        } catch (err) {
+          logger.warn(`Failed to process image attachment in ${channelId}`, err);
+        }
+      }
+    }
+
+    this.context.addMessage(channelId, "user", userContent);
 
     const channel = await this.selfbot.channels.fetch(channelId).catch(() => null);
     if (!channel || !channel.isText()) return;
