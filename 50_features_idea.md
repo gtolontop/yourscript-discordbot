@@ -47,7 +47,7 @@ Here is a list of 50 features (ranging from simple additions to complex systems)
 
 ## ⚙️ Utility & Infrastructure
 
-- [ ] **Conversation-Generated Embeds**: Instead of a web interface, simply tell the AI via a command: "Create an embed for the new rules update with a red border and these 3 points," and the bot generates and posts it.
+- [x] **Conversation-Generated Embeds**: Instead of a web interface, simply tell the AI via a command: "Create an embed for the new rules update with a red border and these 3 points," and the bot generates and posts it.
 - [ ] **Scheduled Announcements System**: Plan and format announcements weeks in advance via the dashboard, complete with pings and images.
 - [x] **GitHub Issue Creator**: Automatically create GitHub issues directly from Discord bug report tickets with a simple staff command or AI action.
 - [ ] **Aggressive Todo Reminders**: If a staff member ignores an assigned ticket, drops a bug report, or forgets a task, the bot aggressively DMs them or pings them in a staff channel daily until it's marked complete.
@@ -57,16 +57,16 @@ Here is a list of 50 features (ranging from simple additions to complex systems)
 
 ## 🧠 Additional AI & Store Enhancements
 
-- [ ] **AI Code Snippet Helper**: For FiveM, the AI can read Lua/JS snippets posted in support tickets and highlight syntax errors immediately, saving developer time.
-- [ ] **AI Sentiment Daily Report**: A daily summary for the owner analyzing the general mood of support tickets (e.g., "70% of users were frustrated with the new inventory update today").
-- [ ] **Automatic FAQ Updating**: Every week, the AI analyzes resolved tickets and proposes 3 new Q&A pairs to add to the server's public `#faq` channel.
+- [x] **AI Code Snippet Helper**: For FiveM, the AI can read Lua/JS snippets posted in support tickets and highlight syntax errors immediately, saving developer time.
+- [x] **AI Sentiment Daily Report**: A daily summary for the owner analyzing the general mood of support tickets (e.g., "70% of users were frustrated with the new inventory update today").
+- [x] **Automatic FAQ Updating**: Every week, the AI analyzes resolved tickets and proposes 3 new Q&A pairs to add to the server's public `#faq` channel.
 - [ ] **Abandoned Cart DMs (Tebex)**: If possible via webhook, the bot DMs a user who linked their Discord but didn't finish checkout with a small 5% off coupon.
 - [ ] **Staff Performance AI Summary**: At the end of the month, the AI generates a private report on staff efficiency, noting who resolved the most tickets and who had the highest satisfaction rating.
 - [x] **Dynamic Ticket Naming**: AI automatically renames a ticket from `ticket-0014` to `esx-inventory-bug-0014` based on the user's first two messages.
 - [ ] **AI Suggested Macros**: If the AI notices staff typing the same response often, it suggests creating a slash-command macro for it.
 - [x] **User Profile Card**: A command that pulls up a beautiful embed showing a user's join date, Tebex purchases, past ticket history, and AI-determined "trust level".
 - [x] **Smart Ping Management**: The AI prevents users from mentioning `@Staff` more than once per hour in a ticket, warning them that bumping doesn't speed up response times.
-- [ ] **Support Shift Handover**: A command for staff logging off to generate a quick AI summary of all their open tickets to pass to the next shift.
+- [x] **Support Shift Handover**: A command for staff logging off to generate a quick AI summary of all their open tickets to pass to the next shift.
 - [x] **Feature Request Voting Board**: A forum channel managed by the bot where users submit ideas. The AI deduplicates them and formats them cleanly for voting.
 - [ ] **Tebex Release Countdown**: A dynamic voice channel name or profile status on the bot that counts down to the next big script release.
 - [ ] **Store Page Previewer**: When a Tebex link is dropped in chat, the bot instantly replies with a custom clean embed showing the script's price, features, and a preview image.

@@ -34,6 +34,11 @@ export default {
     )
     .addSubcommand((sub) =>
       sub
+        .setName("handover")
+        .setDescription("Generate a shift handover summary of active open tickets")
+    )
+    .addSubcommand((sub) =>
+      sub
         .setName("memory")
         .setDescription("View AI memories for a user")
         .addUserOption((opt) =>
@@ -289,6 +294,51 @@ export default {
             } catch (err: any) {
                 return interaction.editReply(errorMessage({ description: `Error formatting embed: ${err.message}` }));
             }
+        });
+        return;
+      }
+
+      case "handover": {
+        await interaction.deferReply();
+
+        const activeTickets = await client.db.ticket.findMany({
+          where: {
+            guildId,
+            status: "open",
+            lastActivity: { gte: new Date(Date.now() - 12 * 60 * 60 * 1000) } // Last 12h
+          },
+        });
+
+        if (activeTickets.length === 0) {
+            return interaction.editReply(errorMessage({ description: "There are no active open tickets in the last 12 hours to summarize." }));
+        }
+
+        if (!client.aiNamespace || client.aiNamespace.sockets.size === 0) {
+            return interaction.editReply(errorMessage({ description: "AI selfbot not connected." }));
+        }
+
+        const ticketData = activeTickets.map(t => `Ticket ${t.number} | Subject: ${t.subject ?? 'No subject'} | Priority: ${t.priority} | ClaimedBy: ${t.claimedBy ? `<@${t.claimedBy}>` : 'None'}`).slice(0, 30).join("\\n");
+        const aiSocket = Array.from(client.aiNamespace.sockets.values())[0] as any;
+
+        const timeout = setTimeout(() => {
+            interaction.editReply(errorMessage({ description: "AI request timed out after 15 seconds." }));
+        }, 15000);
+
+        aiSocket.emit("query:generateHandover", { data: ticketData }, async (result: any) => {
+            clearTimeout(timeout);
+            if (result.error) {
+                return interaction.editReply(errorMessage({ description: `AI Failed: ${result.error}` }));
+            }
+            
+            const { EmbedBuilder } = await import("discord.js");
+            const embed = new EmbedBuilder()
+                .setTitle("📋 Shift Handover Summary")
+                .setDescription(result.text)
+                .setColor(0x5865f2)
+                .setFooter({ text: `Summarized ${activeTickets.length} active tickets from the last 12h`, iconURL: interaction.user.displayAvatarURL() })
+                .setTimestamp();
+            
+            return interaction.editReply({ embeds: [embed] });
         });
         return;
       }

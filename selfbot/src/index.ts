@@ -145,6 +145,60 @@ bridge.onQuery("query:generateEmbed", async (data: any) => {
   }
 });
 
+bridge.onQuery("query:generateMoraleReport", async (data: any) => {
+  try {
+    const ticketData = data.data;
+    if (!ticketData) return { text: "No tickets were closed yesterday." };
+
+    const result = await ai.generateText(
+      "You are analyzing a day of customer support tickets for a FiveM server. Based on the provided summary of yesterday's tickets, write a short, sharp paragraph (3-4 sentences) summarizing the 'Server Morale' for the staff team. Mention trends, overall sentiment (e.g. 80% positive), and highlight any recurring frustrations or bugs. Be concise and professional.",
+      [{ role: "user", content: ticketData }],
+      { temperature: 0.3, maxTokens: 200, taskType: "classification" } 
+    );
+    
+    return { text: result.text.trim() };
+  } catch (err: any) {
+    logger.error("Error generating morale report:", err);
+    return { error: err.message };
+  }
+});
+
+bridge.onQuery("query:generateWeeklyFAQ", async (data: any) => {
+  try {
+    const ticketData = data.data;
+    if (!ticketData) return { text: "No tickets to analyze." };
+
+    const result = await ai.generateText(
+      "You are analyzing a week of customer support tickets. Based on these summaries, generate 3 clear Question & Answer pairs that should be added to the server's public FAQ to prevent future tickets. Format them clearly with Q: and A:. Focus on the most common or easily resolvable issues mentioned.",
+      [{ role: "user", content: ticketData }],
+      { temperature: 0.4, maxTokens: 400, taskType: "classification" } 
+    );
+    
+    return { text: result.text.trim() };
+  } catch (err: any) {
+    logger.error("Error generating weekly FAQ:", err);
+    return { error: err.message };
+  }
+});
+
+bridge.onQuery("query:generateHandover", async (data: any) => {
+  try {
+    const ticketData = data.data;
+    if (!ticketData) return { text: "No tickets to analyze." };
+
+    const result = await ai.generateText(
+      "You are an assistant for a FiveM support team. A staff member is logging off and requested a 'Shift Handover' summary. Based on the provided list of currently active tickets, write a concise, organized summary so the next shift knows what needs attention. Use markdown lists and bullet points.",
+      [{ role: "user", content: ticketData }],
+      { temperature: 0.3, maxTokens: 400, taskType: "classification" } 
+    );
+    
+    return { text: result.text.trim() };
+  } catch (err: any) {
+    logger.error("Error generating handover:", err);
+    return { error: err.message };
+  }
+});
+
 // Start everything
 async function main() {
   logger.info("Starting AI Selfbot...");
