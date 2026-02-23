@@ -34,19 +34,19 @@ const MODEL_TABLE: Record<TaskType, ModelConfig> = {
   },
   quick_response: {
     model: "google/gemini-2.5-flash-lite",
-    fallback: "deepseek/deepseek-v3.2",
+    fallback: "openai/gpt-4o-mini",
     rpm: 200,
     rpd: 10000,
   },
   conversation: {
-    model: "deepseek/deepseek-v3.2",
-    fallback: "meta-llama/llama-3.3-70b-instruct",
+    model: "google/gemini-2.5-flash-lite",
+    fallback: "deepseek/deepseek-v3.2",
     rpm: 200,
     rpd: 10000,
   },
   complex_analysis: {
-    model: "deepseek/deepseek-v3.2",
-    fallback: "x-ai/grok-4.1-fast",
+    model: "google/gemini-2.5-flash-lite",
+    fallback: "deepseek/deepseek-v3.2",
     rpm: 200,
     rpd: 10000,
   },
@@ -68,8 +68,8 @@ const MODEL_TABLE: Record<TaskType, ModelConfig> = {
     rpd: 50000,
   },
   dm_conversation: {
-    model: "deepseek/deepseek-v3.2",
-    fallback: "meta-llama/llama-3.3-70b-instruct",
+    model: "google/gemini-2.5-flash-lite",
+    fallback: "deepseek/deepseek-v3.2",
     rpm: 200,
     rpd: 10000,
   },
@@ -113,7 +113,7 @@ export class ModelRouter {
 
   getModel(taskType: TaskType): string {
     const config = MODEL_TABLE[taskType];
-    if (!config) return "deepseek/deepseek-v3.2";
+    if (!config) return "google/gemini-2.5-flash-lite";
 
     // Check if primary model is available (not hard-banned and within soft limits)
     if (!this.isHardBanned(config.model) && this.isAvailable(config.model, config.rpm, config.rpd)) {
@@ -122,7 +122,7 @@ export class ModelRouter {
     }
 
     // Generic fallback: Use defined fallback or grok
-    const fallback = config.fallback || "x-ai/grok-4.1-fast";
+    const fallback = config.fallback || "deepseek/deepseek-v3.2";
 
     if (!this.isHardBanned(fallback)) {
       logger.ai(`Rate limited on ${config.model}, falling back to ${fallback}`);
@@ -169,13 +169,13 @@ export class ModelRouter {
         return 512;
       case "conversation":
       case "dm_conversation":
-        return 1024;
+        return 512;
       case "complex_analysis":
-        return 2048;
+        return 512;
       case "summary":
         return 512;
       default:
-        return 1024;
+        return 512;
     }
   }
 

@@ -60,6 +60,10 @@ const staffBackedOff = new Map<string, { staffId: string; lastStaffMsg: number; 
 const lastStaffPings = new Map<string, number>();
 const ticketRenamed = new Set<string>(); // Track tickets already renamed to avoid spamming renames
 
+// Debounce system: batch rapid user messages into 1 LLM call
+const DEBOUNCE_MS = 3000;
+const pendingMessages = new Map<string, { timer: ReturnType<typeof setTimeout>; messages: string[]; data: TicketMessageEvent }>();
+
 export class TicketHandler {
   private context: ContextManager;
   private memory: MemoryManager;
@@ -124,6 +128,12 @@ export class TicketHandler {
     }
 
     if (isTooShortOrUseless(data.content)) {
+       // Still add to debounce buffer if there's a pending batch (user might be typing in parts)
+       const pending = pendingMessages.get(channelId);
+       if (pending) {
+         // Don't add useless content but don't block the timer
+         return;
+       }
        return;
     }
 
@@ -347,26 +357,26 @@ export class TicketHandler {
       return;
     }
 
-    // Add message and respond
+    // Add message content (may be batched via debounce)
     let userContent = data.content;
     
-    // Process attachments (Ultra-Cheap Image Recognition)
+    // Process attachments immediately (no debounce for images)
     if (data.attachments && data.attachments.length > 0) {
       const imageAttachments = data.attachments.filter(a => a.contentType?.startsWith('image/'));
       if (imageAttachments.length > 0) {
         logger.ai(`Found ${imageAttachments.length} images in ${channelId}, checking vision model...`);
         try {
-          const model = this.router.getModel("quick_response"); // flash-lite is good enough
+          const model = this.router.getModel("quick_response");
           const visionResult = await this.ai.generateText(
             "You are a helpful OCR and screenshot analyzer. Read the provided user image/text. Reply with a short summary of what the image shows, including any error codes or important text visible. Do not solve the issue, just describe the screenshot for another AI.",
             [
               { role: "user", content: data.content },
               ...imageAttachments.map(img => ({
                 role: "user" as const,
-                content: `[Image URL: ${img.url}]` // OpenRouter requires proper image URL format, assuming generateText handles it if we pass it, but standard OpenRouter might need distinct formatting. For now we will append a system note.
+                content: `[Image URL: ${img.url}]`
               }))
             ],
-            { model, temperature: 0.1, maxTokens: 300, taskType: "classification" } // Cheap classification task
+            { model, temperature: 0.1, maxTokens: 300, taskType: "classification" }
           );
           userContent += `\n\n[System Note: User attached an image. Vision AI description: ${visionResult.text}]`;
         } catch (err) {
@@ -375,7 +385,42 @@ export class TicketHandler {
       }
     }
 
-    this.context.addMessage(channelId, "user", userContent);
+    // === DEBOUNCE: Batch rapid messages into 1 LLM call ===
+    const existing = pendingMessages.get(channelId);
+    if (existing) {
+      // User sent another message within the debounce window — add it to the buffer
+      clearTimeout(existing.timer);
+      existing.messages.push(userContent);
+      existing.data = data; // Keep latest event data
+      existing.timer = setTimeout(() => this.flushPendingMessages(channelId, lang), DEBOUNCE_MS);
+      logger.ai(`Debouncing message in ${channelId} (${existing.messages.length} buffered)`);
+      return;
+    }
+
+    // First message — start debounce timer
+    const timer = setTimeout(() => this.flushPendingMessages(channelId, lang), DEBOUNCE_MS);
+    pendingMessages.set(channelId, { timer, messages: [userContent], data });
+  }
+
+  /**
+   * Flush debounced messages and send 1 LLM call
+   */
+  private async flushPendingMessages(channelId: string, lang: SupportedLanguage): Promise<void> {
+    const pending = pendingMessages.get(channelId);
+    if (!pending) return;
+    pendingMessages.delete(channelId);
+
+    const data = pending.data;
+    const state = this.context.get(channelId);
+    if (!state) return;
+
+    // Merge all buffered messages into 1 user message  
+    const mergedContent = pending.messages.join("\n");
+    this.context.addMessage(channelId, "user", mergedContent);
+
+    if (pending.messages.length > 1) {
+      logger.ai(`Flushing ${pending.messages.length} batched messages in ${channelId}`);
+    }
 
     const channel = await this.selfbot.channels.fetch(channelId).catch(() => null);
     if (!channel || !channel.isText()) return;
@@ -387,7 +432,7 @@ export class TicketHandler {
       const fullPrompt = this.context.getFullSystemPrompt(channelId);
       let messagesContext = this.context.getMessages(channelId);
       if (messagesContext.length > 8) {
-         messagesContext = messagesContext.slice(-8); // Limiter à 8 messages maximum pour réduire le coût
+         messagesContext = messagesContext.slice(-8);
       }
       logger.ai(`Generating response in ${channelId} | Task: ${taskType} | System Prompt Length: ${fullPrompt.length} chars | History: ${messagesContext.length} messages`);
 
@@ -417,6 +462,13 @@ export class TicketHandler {
   async handleTicketClose(data: TicketCloseEvent): Promise<void> {
     waitingForUser.delete(data.channelId);
     staffBackedOff.delete(data.channelId);
+
+    // Cancel any pending debounced messages
+    const pending = pendingMessages.get(data.channelId);
+    if (pending) {
+      clearTimeout(pending.timer);
+      pendingMessages.delete(data.channelId);
+    }
 
     const state = this.context.get(data.channelId);
     if (!state) return;
