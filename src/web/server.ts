@@ -235,6 +235,19 @@ export function startWebServer(client: Bot, port: number = 3000): { app: ReturnT
       }
     });
 
+    socket.on("action:renameTicket" as any, async (data: any, callback: any) => {
+      try {
+        const channel = client.channels.cache.get(data.channelId);
+        if (!channel?.isTextBased() || channel.isDMBased()) {
+          return callback({ success: false, error: "Channel not found" });
+        }
+        await (channel as any).setName(data.newName);
+        callback({ success: true });
+      } catch (err: any) {
+        callback({ success: false, error: err.message });
+      }
+    });
+
     socket.on("action:sendAsBot" as any, async (data: any, callback: any) => {
       try {
         const channel = client.channels.cache.get(data.channelId);

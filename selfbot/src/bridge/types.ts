@@ -49,6 +49,12 @@ export interface CloseTicketAction {
   guildId: string;
 }
 
+export interface RenameTicketAction {
+  channelId: string;
+  guildId: string;
+  newName: string;
+}
+
 export interface SendAsBotAction {
   channelId: string;
   content?: string;
@@ -296,6 +302,7 @@ export interface ServerToAIEvents {
 export interface AIToServerEvents {
   "action:assignRole": (data: AssignRoleAction, callback: (result: { success: boolean; error?: string }) => void) => void;
   "action:closeTicket": (data: CloseTicketAction, callback: (result: { success: boolean; error?: string }) => void) => void;
+  "action:renameTicket": (data: RenameTicketAction, callback: (result: { success: boolean; error?: string }) => void) => void;
   "action:sendAsBot": (data: SendAsBotAction, callback: (result: { success: boolean; error?: string }) => void) => void;
   "action:addTodo": (data: AddTodoAction, callback: (result: { success: boolean; todoId?: number; error?: string }) => void) => void;
   "action:escalate": (data: EscalateAction, callback: (result: { success: boolean; error?: string }) => void) => void;

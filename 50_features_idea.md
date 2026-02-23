@@ -7,7 +7,7 @@ Here is a list of 50 features (ranging from simple additions to complex systems)
 - [x] **Advanced Select Menu Ticket Panel**: A highly customizable select menu for tickets (Support, Partnership, Bug, etc.), where each category opens a unique, dynamically generated modal so the user provides exactly the right info immediately.
 - [x] **Auto-Transcripts with PDF Export**: Instead of just text or HTML, allow users and staff to download a cleanly formatted PDF of the ticket transcript. *(HTML transcripts implemented)*
 - [ ] **AI-Powered Ticket Knowledge Base**: The AI should learn from closed tickets and automatically suggest solutions to users creating new tickets before they even reach a staff member.
-- [ ] **Ticket Priority Queue system**: Allow staff to sort and view tickets based on SLA (Service Level Agreement) deadlines and assigned priority levels.
+- [x] **Ticket Priority Queue system**: Allow staff to sort and view tickets based on SLA (Service Level Agreement) deadlines and assigned priority levels.
 - [ ] **Interactive Troubleshooting Menus**: Multi-step dropdown menus for common issues before a ticket is created, potentially solving the issue without human intervention.
 - [ ] **CSAT (Customer Satisfaction) Dashboard**: A web dashboard solely dedicated to tracking feedback scores, response times, and staff performance metrics.
 
@@ -17,7 +17,7 @@ Here is a list of 50 features (ranging from simple additions to complex systems)
 - [ ] **On-Demand Voice Note Parsing**: If a user sends a voice note, the bot replies with a blank "transcribing audio..." message. It uses an ultra-cheap model to transcribe it to text. The AI *only* acts once the text is ready.
 - [ ] **Smart Prompt Builder via Command**: A command to feed the AI new facts (e.g., rules, product info). The bot passes the input to a cheap model to "clean and format" it properly before saving it to the permanent system prompt, ensuring the AI is incredibly smart and adapted to the specific store without manual rewriting.
 - [ ] **Emotion-aware Responses**: The AI should detect if a user is angry or frustrated over multiple messages and automatically adjust its tone to be more empathetic, while silently pinging a manager.
-- [ ] **Smart Contextual Memory Filtering**: Enhance the memory system so the AI only stores highly relevant, "smart" data (e.g., user age, preferred framework like ESX/QBCore, or their Discord server member count of 5000) and completely filters out useless conversational filler.
+- [x] **Smart Contextual Memory Filtering**: Enhance the memory system so the AI only stores highly relevant, "smart" data (e.g., user age, preferred framework like ESX/QBCore, or their Discord server member count of 5000) and completely filters out useless conversational filler.
 - [ ] **Auto-Translation for Staff**: If a user speaks Spanish and the staff speaks English, the bot should seamlessly translate the conversation back and forth in real-time within the ticket.
 - [ ] **Auto-Role Assignment Context**: If the AI detects a user confirming they own "Inventory" or "ClothesShop," it automatically grants them the base "Client" role logcally, skipping manual verification if it's safe.
 
@@ -52,7 +52,7 @@ Here is a list of 50 features (ranging from simple additions to complex systems)
 - [x] **GitHub Issue Creator**: Automatically create GitHub issues directly from Discord bug report tickets with a simple staff command or AI action.
 - [ ] **Aggressive Todo Reminders**: If a staff member ignores an assigned ticket, drops a bug report, or forgets a task, the bot aggressively DMs them or pings them in a staff channel daily until it's marked complete.
 - [ ] **Visual Server Analytics Log**: The bot posts a beautifully formatted embed in a dedicated `#analytics-logs` channel at the top, updating daily/weekly with stats (new joins, most active channels, ticket volume) instead of generating expensive images.
-- [ ] **Escalation Notification Channel**: Fix the escalation system so when the AI pushes a ticket up, it drops a clean message in a designated staff channel stating *exactly* why it was escalated and pinging the right role, rather than getting lost.
+- [x] **Escalation Notification Channel**: Fix the escalation system so when the AI pushes a ticket up, it drops a clean message in a designated staff channel stating *exactly* why it was escalated and pinging the right role, rather than getting lost.
 - [x] **Temporary Voice Channels (VoiceMaster)**: Users can create custom voice channels that delete themselves when empty, with commands to change name, limit, and bitrate. Useful for specialized support or private buyer calls.
 
 ## 🧠 Additional AI & Store Enhancements
@@ -64,7 +64,7 @@ Here is a list of 50 features (ranging from simple additions to complex systems)
 - [ ] **Staff Performance AI Summary**: At the end of the month, the AI generates a private report on staff efficiency, noting who resolved the most tickets and who had the highest satisfaction rating.
 - [ ] **Dynamic Ticket Naming**: AI automatically renames a ticket from `ticket-0014` to `esx-inventory-bug-0014` based on the user's first two messages.
 - [ ] **AI Suggested Macros**: If the AI notices staff typing the same response often, it suggests creating a slash-command macro for it.
-- [ ] **User Profile Card**: A command that pulls up a beautiful embed showing a user's join date, Tebex purchases, past ticket history, and AI-determined "trust level."
+- [x] **User Profile Card**: A command that pulls up a beautiful embed showing a user's join date, Tebex purchases, past ticket history, and AI-determined "trust level".
 - [ ] **Smart Ping Management**: The AI prevents users from mentioning `@Staff` more than once per hour in a ticket, warning them that bumping doesn't speed up response times.
 - [ ] **Support Shift Handover**: A command for staff logging off to generate a quick AI summary of all their open tickets to pass to the next shift.
 - [ ] **Feature Request Voting Board**: A forum channel managed by the bot where users submit ideas. The AI deduplicates them and formats them cleanly for voting.

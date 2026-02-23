@@ -55,6 +55,9 @@ const waitingForUser = new Set<string>();
 // Track staff-backed-off channels with the staff userId and timestamp
 const staffBackedOff = new Map<string, { staffId: string; lastStaffMsg: number; lastUserMsg: number }>();
 
+// Track the last time a user pinged staff in a channel to prevent spam (Smart Ping Management)
+const lastStaffPings = new Map<string, number>();
+
 export class TicketHandler {
   private context: ContextManager;
   private memory: MemoryManager;
@@ -169,6 +172,30 @@ export class TicketHandler {
       } else {
         return;
       }
+    }
+
+    // Smart Ping Management: Avoid repeated @Staff or role pings
+    const pingRegex = /<@&\d+>|@everyone|@here/i;
+    if (pingRegex.test(data.content)) {
+      const now = Date.now();
+      const lastPing = lastStaffPings.get(channelId) || 0;
+      // 1 hour cooldown for pings
+      if (now - lastPing < 60 * 60 * 1000) {
+        logger.ai(`Preventing frequent staff ping in ${channelId}`);
+        const channel = await this.selfbot.channels.fetch(channelId).catch(() => null);
+        if (channel?.isText()) {
+           const lang = this.ticketLanguages.get(channelId) ?? "en";
+           const warnings: Record<string, string> = {
+             en: "Please avoid pinging staff multiple times. Bumping the ticket doesn't speed up response times. We'll get to you as soon as possible.",
+             fr: "Merci de ne pas mentionner le staff plusieurs fois. Relancer le ticket n'accélère pas le temps de réponse. Nous te répondrons dès que possible.",
+             es: "Por favor evita mencionar al staff múltiples veces. Etiquetar no acelera el tiempo de respuesta. Te atenderemos lo antes posible."
+           };
+           await (channel as any).send(warnings[lang] ?? warnings.en);
+        }
+        // Do NOT continue processing the message to let AI ignore the spam? No, just warn and let AI handle as normal, or just return to ignore the ping. 
+        // Returning to ignore is fine, effectively acting as an automod. But let's process it still.
+      }
+      lastStaffPings.set(channelId, now);
     }
 
     // If we were waiting for user's first message
