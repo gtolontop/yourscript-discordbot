@@ -23,6 +23,17 @@ export default {
     )
     .addSubcommand((sub) =>
       sub
+        .setName("embed")
+        .setDescription("Generate an embed using AI")
+        .addStringOption((opt) =>
+          opt.setName("prompt").setDescription("What should the embed look like? e.g. 'rules update red border'").setRequired(true)
+        )
+        .addChannelOption((opt) =>
+          opt.setName("channel").setDescription("Where to post the embed").setRequired(false)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
         .setName("memory")
         .setDescription("View AI memories for a user")
         .addUserOption((opt) =>
@@ -236,6 +247,50 @@ export default {
             color: "Info",
           })
         );
+      }
+
+      case "embed": {
+        const prompt = interaction.options.getString("prompt", true);
+        const targetChannel = interaction.options.getChannel("channel") ?? interaction.channel;
+        
+        await interaction.deferReply({ ephemeral: true });
+
+        if (!client.aiNamespace || client.aiNamespace.sockets.size === 0) {
+            return interaction.editReply(errorMessage({ description: "AI selfbot is not connected. Make sure the backend AI is running." }));
+        }
+
+        const aiSocket = Array.from(client.aiNamespace.sockets.values())[0]!;
+        const timeout = setTimeout(() => {
+            interaction.editReply(errorMessage({ description: "AI request timed out after 15 seconds." }));
+        }, 15000);
+
+        aiSocket.emit("query:generateEmbed" as any, { prompt }, async (result: any) => {
+            clearTimeout(timeout);
+            if (result.error) {
+                return interaction.editReply(errorMessage({ description: `AI Failed: ${result.error}` }));
+            }
+            try {
+                const { EmbedBuilder } = await import("discord.js");
+                const embedData = result.embed;
+                const embed = new EmbedBuilder();
+                if (embedData.title) embed.setTitle(embedData.title);
+                if (embedData.description) embed.setDescription(embedData.description);
+                if (embedData.color) {
+                   const c = parseInt(embedData.color.replace("#", ""), 16);
+                   if (!isNaN(c)) embed.setColor(c);
+                }
+                
+                if (!targetChannel) {
+                   return interaction.editReply(errorMessage({ description: `Could not determine target channel.` }));
+                }
+
+                await (targetChannel as any).send({ embeds: [embed] });
+                return interaction.editReply(successMessage({ description: `Embed generated and sent to <#${targetChannel.id}>` }));
+            } catch (err: any) {
+                return interaction.editReply(errorMessage({ description: `Error formatting embed: ${err.message}` }));
+            }
+        });
+        return;
       }
 
       case "memory": {
