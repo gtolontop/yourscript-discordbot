@@ -149,7 +149,6 @@ export function getTicketSystemPrompt(
 
   let prompt = `${base}\n\n${typePrompt}`;
 
-  // Inject knowledge base FIRST to maximize prefix caching (Zero-Waste AI)
   if (knowledge && knowledge.length > 0) {
     const sections: Record<string, string[]> = {};
     for (const item of knowledge) {
@@ -157,49 +156,20 @@ export function getTicketSystemPrompt(
       sections[item.category]!.push(`${item.key}: ${item.value}`);
     }
 
-    const categoryLabels: Record<string, string> = {
-      business: "BUSINESS INFO (use this to answer questions about who we are)",
-      glossary: "GLOSSARY (terms to know and use correctly)",
-      instructions: "CUSTOM INSTRUCTIONS (follow these rules)",
-      faq: "FAQ (common questions and their answers)",
-      product: "PRODUCTS & SERVICES (what we sell/offer)",
-    };
-
-    prompt += "\n\n--- KNOWLEDGE BASE ---";
+    prompt += "\n\nKB:";
     for (const [cat, entries] of Object.entries(sections)) {
-      const label = categoryLabels[cat] ?? cat.toUpperCase();
-      prompt += `\n\n${label}:\n${entries.join("\n")}`;
+      prompt += `\n[${cat}]\n${entries.join("\n")}`;
     }
-    prompt += "\n--- END KNOWLEDGE BASE ---";
-    prompt += "\nUse this knowledge naturally in conversations. Don't quote it word for word, just incorporate it.";
+    prompt += "\nUse KB naturally.";
   }
 
-  // Dynamic context goes LAST so it doesn't break the cache of the knowledge base
   if (context) {
     prompt += `\n\n${context}`;
   }
 
   const langNames: Record<SupportedLanguage, string> = { en: "English", fr: "French", es: "Spanish", de: "German", pt: "Portuguese" };
-  prompt += `\n\nYou MUST respond in ${langNames[lang]}.`;
-
-  prompt += `\n\n=== EXTREMELY IMPORTANT: RESPONSE FORMAT ===
-You MUST respond with a SINGLE JSON object. No markdown formatting, no code blocks (\`\`\`json). Just raw JSON.
-Format:
-{
-  "classification": "service_inquiry|bug_report|role_request|partnership|general_support",
-  "sentiment": "positive|neutral|negative|frustrated",
-  "priority": 5, // 1 to 10
-  "response": "<your conversational message to the user>",
-  "needs_escalation": false, // true ONLY if the user explicitly asks for human/manager/refund or if you truly cannot help
-  "escalation_reason": "<professional reason if true, else null>",
-  "escalation_specialty": "developer|designer|manager|support|null",
-  "rename_to": "<optional short descriptive channel name, lowercase with dashes, e.g. partner-request. Set to null if already renamed or no need>",
-  "is_resolved": false, // true only if the user clearly indicates their problem is solved ("thanks that's all", "you can close")
-  "ask_info": false, // true ONLY if you are asking the user for specific details that would fit into a form
-  "todos": [ // optional tasks to note down (empty array if none)
-    { "title": "...", "priority": "low|normal|high|urgent" }
-  ]
-}`;
+  prompt += `\nRespond in ${langNames[lang]}. Output ONLY raw JSON:`;
+  prompt += `\n{"classification":"service_inquiry|bug_report|role_request|partnership|general_support","sentiment":"positive|neutral|negative|frustrated","priority":1-10,"response":"<your message>","needs_escalation":false,"escalation_reason":null,"rename_to":null,"is_resolved":false,"todos":[]}`;
 
   return prompt;
 }

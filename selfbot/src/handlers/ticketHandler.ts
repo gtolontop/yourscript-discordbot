@@ -431,8 +431,8 @@ export class TicketHandler {
 
       const fullPrompt = this.context.getFullSystemPrompt(channelId);
       let messagesContext = this.context.getMessages(channelId);
-      if (messagesContext.length > 8) {
-         messagesContext = messagesContext.slice(-8);
+      if (messagesContext.length > 4) {
+         messagesContext = messagesContext.slice(-4);
       }
       logger.ai(`Generating response in ${channelId} | Task: ${taskType} | System Prompt Length: ${fullPrompt.length} chars | History: ${messagesContext.length} messages`);
 
