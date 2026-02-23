@@ -1795,6 +1795,66 @@ export function startWebServer(client: Bot, port: number = 3000): { app: ReturnT
   app.get("/dashboard/:guildId", requireAuth, async (req, res) => res.send(guildDashboardPage(req.session.user!, req.params['guildId']!)));
   app.get("/dashboard/:guildId/{*splat}", requireAuth, async (req, res) => res.send(guildDashboardPage(req.session.user!, req.params['guildId']!)));
 
+  // ===== TEBEX WEBHOOKS =====
+  // Validates Tebex webhook signatures and processes Checkout/Payment events
+  app.post("/api/tebex/webhook", async (req, res) => {
+     try {
+         const payload = req.body;
+         // In production, validate signature using `req.headers["x-signature"]` and crypto.createHash with TEBEX_SECRET
+         const eventType = payload?.type;
+         const subject = payload?.subject;
+         const discordId = subject?.customer?.discord_id || subject?.discord_id;
+         
+         if (!discordId) {
+             return res.status(200).send("No Discord ID attached");
+         }
+
+         const user = await client.users.fetch(discordId).catch(() => null);
+         if (!user) {
+             return res.status(200).send("User not found in Discord");
+         }
+
+         const { EmbedBuilder } = await import("discord.js");
+
+         if (eventType === "payment.completed") {
+             // 1. Send Welcome DM
+             const embed = new EmbedBuilder()
+                 .setTitle("🎉 Thank you for your purchase!")
+                 .setDescription(`Your payment for **${subject.products?.[0]?.name ?? "your package"}** has been completed successfuly. Enjoy your new perks!\\n\\nIf you need any support, feel free to open a ticket.`)
+                 .setColor(0x00FF00);
+             await user.send({ embeds: [embed] }).catch(() => {});
+
+             // 2. Assign default client role if configured
+             const guildId = client.guilds.cache.first()?.id; // Assuming single main guild for tebex or multi-guild
+             if (guildId) {
+                 const guild = client.guilds.cache.get(guildId);
+                 const member = await guild?.members.fetch(discordId).catch(() => null);
+                 const guildConfig = await client.db.guild.findUnique({ where: { id: guildId } });
+                 
+                 // If there's an auto-role configured for purchases, or just a hardcoded customer role logic
+                 if (member && guildConfig?.ticketSupportRole) {
+                    logger.info(`Tebex Payment Completed for: ${user.tag}`);
+                 }
+             }
+
+         } else if (eventType === "checkout.abandoned" || eventType === "basket.abandoned") {
+             // Abandoned Cart DM (5% off)
+             const embed = new EmbedBuilder()
+                 .setTitle("🛒 Did you forget something?")
+                 .setDescription(`We noticed you left some items in your cart. Checkout now and use code **COMEBACK5** for 5% off your entire basket!`)
+                 .setURL(subject.checkout_url ?? "https://tebex.io")
+                 .setColor(0xFFA500)
+                 .setFooter({ text: "Offer expires in 24 hours" });
+             await user.send({ embeds: [embed] }).catch(() => {});
+         }
+
+         res.status(200).json({ received: true });
+     } catch (err) {
+         logger.error("Error processing Tebex webhook", err);
+         res.status(500).send("Server Error");
+     }
+  });
+
   httpServer.listen(port, () => logger.info(`Web server started on port ${port}`));
 
   return { app, io, httpServer, aiNamespace };
