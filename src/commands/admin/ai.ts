@@ -39,6 +39,11 @@ export default {
     )
     .addSubcommand((sub) =>
       sub
+        .setName("staff_report")
+        .setDescription("Generate an AI performance report of the staff team for the last 30 days")
+    )
+    .addSubcommand((sub) =>
+      sub
         .setName("memory")
         .setDescription("View AI memories for a user")
         .addUserOption((opt) =>
@@ -336,6 +341,59 @@ export default {
                 .setDescription(result.text)
                 .setColor(0x5865f2)
                 .setFooter({ text: `Summarized ${activeTickets.length} active tickets from the last 12h`, iconURL: interaction.user.displayAvatarURL() })
+                .setTimestamp();
+            
+            return interaction.editReply({ embeds: [embed] });
+        });
+        return;
+      }
+
+      case "staff_report": {
+        await interaction.deferReply({ ephemeral: true });
+
+        const lastMonth = new Date();
+        lastMonth.setDate(lastMonth.getDate() - 30);
+
+        const closedTickets = await client.db.ticket.findMany({
+          where: {
+            guildId,
+            status: "closed",
+            closedAt: { gte: lastMonth }
+          },
+          include: { TicketSummary: true }
+        });
+
+        if (closedTickets.length === 0) {
+            return interaction.editReply(errorMessage({ description: "No closed tickets found in the last 30 days to analyze." }));
+        }
+
+        if (!client.aiNamespace || client.aiNamespace.sockets.size === 0) {
+            return interaction.editReply(errorMessage({ description: "AI selfbot not connected." }));
+        }
+
+        // We map necessary minimal data to prevent token explosion
+        const ticketData = closedTickets.map(t => {
+            return `ClaimedBy: ${t.claimedBy ? `<@${t.claimedBy}>` : 'Unclaimed'} | Rating: ${t.reviewRating ? t.reviewRating + '/5' : 'None'} | Sentiment: ${(t as any).TicketSummary?.sentiment ?? 'Neutral'}`;
+        }).join("\\n");
+
+        const aiSocket = Array.from(client.aiNamespace.sockets.values())[0] as any;
+
+        const timeout = setTimeout(() => {
+            interaction.editReply(errorMessage({ description: "AI request timed out after 15 seconds." }));
+        }, 15000);
+
+        aiSocket.emit("query:generateStaffReport", { data: ticketData }, async (result: any) => {
+            clearTimeout(timeout);
+            if (result.error) {
+                return interaction.editReply(errorMessage({ description: `AI Failed: ${result.error}` }));
+            }
+            
+            const { EmbedBuilder } = await import("discord.js");
+            const embed = new EmbedBuilder()
+                .setTitle("📊 AI Monthly Staff Performance Report")
+                .setDescription(result.text)
+                .setColor(0x5865f2)
+                .setFooter({ text: `Analyzed ${closedTickets.length} closed tickets from the last 30 days`, iconURL: interaction.user.displayAvatarURL() })
                 .setTimestamp();
             
             return interaction.editReply({ embeds: [embed] });
