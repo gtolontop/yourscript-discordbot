@@ -115,6 +115,16 @@ export class TicketHandler {
 
     const channelId = data.channelId;
 
+    if (isAbusive(data.content)) {
+       const channel = await this.selfbot.channels.fetch(channelId).catch(() => null);
+       if (channel?.isText()) await (channel as any).send("Merci de rester respectueux pour que nous puissions vous aider.");
+       return;
+    }
+
+    if (isTooShortOrUseless(data.content)) {
+       return;
+    }
+
     // If staff is talking, AI backs off but tracks it
     if (data.isStaff) {
       if (!this.context.isEscalated(channelId)) {
@@ -411,8 +421,11 @@ export class TicketHandler {
       const model = this.router.getModel(taskType);
 
       const fullPrompt = this.context.getFullSystemPrompt(channelId);
-      const messagesContext = this.context.getMessages(channelId);
-      logger.ai(`Generating response in ${channelId} | Model: ${model} | Task: ${taskType} | System Prompt Length: ${fullPrompt.length} chars | History: ${messagesContext.length} messages`);
+      let messagesContext = this.context.getMessages(channelId);
+      if (messagesContext.length > 8) {
+         messagesContext = messagesContext.slice(-8); // Limiter à 8 messages maximum pour réduire le coût
+      }
+      logger.ai(`Generating response in ${channelId} | Task: ${taskType} | System Prompt Length: ${fullPrompt.length} chars | History: ${messagesContext.length} messages`);
 
       const response = await this.ai.generateText(
         fullPrompt,
@@ -465,7 +478,7 @@ export class TicketHandler {
     }
 
     const messages = state.messages.map((m) => ({ role: m.role, content: m.content }));
-    await this.memory.createMemoriesFromConversation(data.guildId, state.userId, messages);
+    await this.memory.processTicketClose(data.guildId, state.userId, data.channelId, messages, state.ticketType);
 
     this.context.remove(data.channelId);
     this.ticketLanguages.delete(data.channelId);
