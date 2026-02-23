@@ -359,13 +359,18 @@ export default {
             guildId,
             status: "closed",
             closedAt: { gte: lastMonth }
-          },
-          include: { TicketSummary: true }
+          }
         });
 
         if (closedTickets.length === 0) {
             return interaction.editReply(errorMessage({ description: "No closed tickets found in the last 30 days to analyze." }));
         }
+
+        const ticketIds = closedTickets.map(t => t.id);
+        const summaries = await client.db.ticketSummary.findMany({
+          where: { ticketId: { in: ticketIds } }
+        });
+        const summaryMap = new Map(summaries.map(s => [s.ticketId, s]));
 
         if (!client.aiNamespace || client.aiNamespace.sockets.size === 0) {
             return interaction.editReply(errorMessage({ description: "AI selfbot not connected." }));
@@ -373,7 +378,8 @@ export default {
 
         // We map necessary minimal data to prevent token explosion
         const ticketData = closedTickets.map(t => {
-            return `ClaimedBy: ${t.claimedBy ? `<@${t.claimedBy}>` : 'Unclaimed'} | Rating: ${t.reviewRating ? t.reviewRating + '/5' : 'None'} | Sentiment: ${(t as any).TicketSummary?.sentiment ?? 'Neutral'}`;
+            const sum = summaryMap.get(t.id);
+            return `ClaimedBy: ${t.claimedBy ? `<@${t.claimedBy}>` : 'Unclaimed'} | Rating: ${t.reviewRating ? t.reviewRating + '/5' : 'None'} | Sentiment: ${sum?.sentiment ?? 'Neutral'}`;
         }).join("\\n");
 
         const aiSocket = Array.from(client.aiNamespace.sockets.values())[0] as any;
