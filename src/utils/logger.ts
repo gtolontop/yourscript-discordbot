@@ -20,12 +20,14 @@ function formatDate(): string {
   });
 }
 
-function log(level: LogLevel, message: string, ...args: unknown[]): void {
-  const color = colors[level] ?? colors.info;
+function log(level: LogLevel, ...args: unknown[]): void {
+  const message = args[0] as string;
+  const rest = args.slice(1);
+  const color = colors[level] ?? colors['info'];
   const timestamp = formatDate();
-  const prefix = `${colors.reset}[${timestamp}] ${color}[${level.toUpperCase()}]${colors.reset}`;
+  const prefix = `${colors['reset']}[${timestamp}] ${color}[${level.toUpperCase()}]${colors['reset']}`;
 
-  console.log(prefix, message, ...args);
+  console.log(prefix, message, ...rest);
 }
 
 export const logger = {
