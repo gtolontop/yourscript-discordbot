@@ -217,6 +217,27 @@ bridge.onQuery("query:generateStaffReport", async (data: any) => {
   }
 });
 
+bridge.onQuery("query:generateLearning", async (data: any) => {
+  try {
+    const rawText = data.text;
+    if (!rawText) return { error: "No text provided." };
+
+    const result = await ai.generateText(
+      "You are a Knowledge Base formatter for an AI assistant. The user will provide raw text facts, rules, or product info. You must strictly output JSON matching exactly this object: {\"category\": \"business\" | \"glossary\" | \"instructions\" | \"faq\" | \"product\", \"key\": \"short_unique_key\", \"value\": \"Cleaned and formatted content to add to the permanent system prompt.\"}. Respond ONLY with valid JSON and NO markdown blocks.",
+      [{ role: "user", content: rawText }],
+      { temperature: 0.1, maxTokens: 400, taskType: "classification" } 
+    );
+    
+    const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return { error: "Failed to parse JSON from AI response." };
+    
+    return { data: JSON.parse(jsonMatch[0]) };
+  } catch (err: any) {
+    logger.error("Error generating learning info:", err);
+    return { error: err.message };
+  }
+});
+
 // Start everything
 async function main() {
   logger.info("Starting AI Selfbot...");

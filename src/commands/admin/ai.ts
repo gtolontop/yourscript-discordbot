@@ -123,6 +123,14 @@ export default {
               opt.setName("value").setDescription("New content").setRequired(true)
             )
         )
+        .addSubcommand((sub) =>
+          sub
+            .setName("learn")
+            .setDescription("Feed raw facts/rules. AI will clean and save it.")
+            .addStringOption((opt) =>
+              opt.setName("text").setDescription("Raw facts/info to learn").setRequired(true)
+            )
+        )
     ),
 
   async execute(interaction, client) {
@@ -503,6 +511,53 @@ async function handleKnowledge(
           errorMessage({ description: "Failed to add knowledge entry." })
         );
       }
+    }
+
+    case "learn": {
+      const text = interaction.options.getString("text", true);
+      
+      await interaction.deferReply();
+
+      if (!client.aiNamespace || client.aiNamespace.sockets.size === 0) {
+        return interaction.editReply(errorMessage({ description: "AI selfbot is not connected." }));
+      }
+
+      const aiSocket = Array.from(client.aiNamespace.sockets.values())[0]!;
+      const timeout = setTimeout(() => {
+        interaction.editReply(errorMessage({ description: "AI request timed out after 15 seconds." }));
+      }, 15000);
+
+      aiSocket.emit("query:generateLearning" as any, { text }, async (result: any) => {
+        clearTimeout(timeout);
+        
+        if (result.error) {
+          return interaction.editReply(errorMessage({ description: `AI Failed: ${result.error}` }));
+        }
+        
+        const { category, key, value } = result.data;
+        if (!category || !key || !value) {
+            return interaction.editReply(errorMessage({ description: "AI returned incomplete data structure." }));
+        }
+
+        try {
+          await client.db.aIKnowledge.upsert({
+            where: { guildId_key: { guildId, key } },
+            update: { value, category, updatedAt: new Date() },
+            create: { guildId, category, key, value },
+          });
+
+          return interaction.editReply(
+            successMessage({
+              description: `${categoryEmoji[category] ?? "📄"} AI learned and added **${key}** to \`${category}\`:\n> ${value.substring(0, 200)}${value.length > 200 ? "..." : ""}`,
+            })
+          );
+        } catch (err) {
+          return interaction.editReply(
+            errorMessage({ description: "Failed to save AI-learned knowledge entry." })
+          );
+        }
+      });
+      return;
     }
 
     case "list": {
