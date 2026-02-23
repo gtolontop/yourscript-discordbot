@@ -60,7 +60,7 @@ Here is a list of 50 features (ranging from simple additions to complex systems)
 - [x] **AI Code Snippet Helper**: For FiveM, the AI can read Lua/JS snippets posted in support tickets and highlight syntax errors immediately, saving developer time.
 - [x] **AI Sentiment Daily Report**: A daily summary for the owner analyzing the general mood of support tickets (e.g., "70% of users were frustrated with the new inventory update today").
 - [x] **Automatic FAQ Updating**: Every week, the AI analyzes resolved tickets and proposes 3 new Q&A pairs to add to the server's public `#faq` channel.
-- [ ] **Abandoned Cart DMs (Tebex)**: If possible via webhook, the bot DMs a user who linked their Discord but didn't finish checkout with a small 5% off coupon.
+- [x] **Abandoned Cart DMs (Tebex)**: If possible via webhook, the bot DMs a user who linked their Discord but didn't finish checkout with a small 5% off coupon.
 - [x] **Staff Performance AI Summary**: At the end of the month, the AI generates a private report on staff efficiency, noting who resolved the most tickets and who had the highest satisfaction rating.
 - [x] **Dynamic Ticket Naming**: AI automatically renames a ticket from `ticket-0014` to `esx-inventory-bug-0014` based on the user's first two messages.
 - [ ] **AI Suggested Macros**: If the AI notices staff typing the same response often, it suggests creating a slash-command macro for it.
