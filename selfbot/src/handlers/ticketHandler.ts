@@ -424,60 +424,11 @@ export class TicketHandler {
           taskType,
           ticketId: channelId,
           guildId: data.guildId,
+          responseFormat: "json"
         }
       );
 
-      this.context.addMessage(channelId, "model", response.text);
-
-      const baseDelay = parseInt(process.env["AI_RESPONSE_DELAY"] ?? "3");
-      await simulateTyping(channel, response.text.length, baseDelay);
-
-      await (channel as any).send(response.text);
-
-      await this.processAIActions(response.text, data);
-
-      // Dynamic Ticket Naming
-      if (state.exchangeCount === 2) {
-        try {
-          const messagesSnippet = this.context.getMessages(channelId).slice(0, 4).map(m => m.content).join("\\n");
-          const result = await this.ai.generateText(
-            "Based on the conversation, generate a short, clean, descriptive channel name for this ticket (max 20 chars). Only use lowercase letters, numbers, and dashes. Example: esx-inventory-bug, tebex-refund, role-request, etc. Respond ONLY with the suggested name, nothing else.",
-            [{ role: "user", content: messagesSnippet }],
-            { model: this.router.getModel("classification"), temperature: 0.1, maxTokens: 20, taskType: "classification", ticketId: channelId, guildId: data.guildId }
-          );
-          
-          let newName = result.text.trim().toLowerCase().replace(/[^a-z0-9-]/g, "").substring(0, 30);
-          if (newName && newName.length >= 3) {
-            const ticketNumMatch = channel && "name" in channel ? (channel as any).name.match(/\\d+$/) : null;
-            const suffix = ticketNumMatch ? `-${ticketNumMatch[0]}` : "";
-            newName = `${newName}${suffix}`;
-            logger.ai(`Renaming ticket ${channelId} to ${newName}`);
-            await this.bridge.renameTicket({ channelId, guildId: data.guildId, newName });
-          }
-        } catch {
-          // Ignore renaming failure
-        }
-      }
-
-      // Proactive suggestion every 4 exchanges
-      if (state.exchangeCount > 0 && state.exchangeCount % 4 === 0) {
-        try {
-          const lastMessages = this.context.getMessages(channelId).slice(-4)
-            .map((m) => `[${m.role}]: ${m.content}`)
-            .join("\n");
-          const suggestion = await this.ai.classifyText(
-            lastMessages,
-            ["suggest_service", "suggest_specialist", "suggest_ticket", "no_suggestion"],
-            "Should we proactively suggest something to help the user?"
-          );
-          if (suggestion.confidence >= 0.8 && suggestion.category !== "no_suggestion") {
-            // Store the suggestion as context for the next system prompt rebuild
-            const hint = `PROACTIVE HINT: Based on the conversation, consider suggesting: ${suggestion.category.replace("suggest_", "")}`;
-            const currentPrompt = this.context.getFullSystemPrompt(channelId);
-            this.context.setSystemPrompt(channelId, currentPrompt + `\n\n${hint}`);
-          }
-        } catch {}
-      }
+      await this.processOmniResponse(channelId, data, response.text, lang);
     } catch (err) {
       logger.error("Failed to respond:", err);
     }
@@ -596,16 +547,9 @@ export class TicketHandler {
     const guildId = data.guildId;
     const userId = data.userId;
 
-    // Classify
-    const categories = ["service_inquiry", "bug_report", "role_request", "partnership", "general_support"];
-    let ticketType = "general_support";
+    // Classify using Omni, no need to pre-classify
+    const ticketType = "general_support";
     let confidence = 0.7;
-
-    try {
-      const result = await this.ai.classifyText(userMessage, categories);
-      ticketType = result.category;
-      confidence = result.confidence;
-    } catch {}
 
     this.context.setTicketType(channelId, ticketType, confidence);
 
@@ -637,19 +581,15 @@ export class TicketHandler {
         {
           model,
           temperature: 0.9,
-          maxTokens: 256,
+          maxTokens: 512,
           taskType: "quick_response",
           ticketId: channelId,
           guildId,
+          responseFormat: "json"
         }
       );
 
-      this.context.addMessage(channelId, "model", response.text);
-
-      const baseDelay = parseInt(process.env["AI_RESPONSE_DELAY"] ?? "3");
-      await simulateTyping(channel, response.text.length, baseDelay + Math.random() * 3);
-
-      await (channel as any).send(response.text);
+      await this.processOmniResponse(channelId, data, response.text, lang);
       logger.ai(`Responded in ${channelId}`);
     } catch (err: any) {
       if (err.code === 10003) {
@@ -736,7 +676,7 @@ export class TicketHandler {
     const assigneeName = assignee ? `<@${assignee.userId}>` : "the team";
 
     let level: "normal" | "high" | "critical" = "normal";
-    const lower = data.content.toLowerCase();
+    const lower = ('content' in data && (data as any).content ? (data as any).content.toLowerCase() : "");
     if (lower.includes("urgent") || lower.includes("urgente") || lower.includes("remboursement") || lower.includes("refund")) {
       level = "high";
     }
@@ -781,101 +721,99 @@ export class TicketHandler {
     return "conversation";
   }
 
-  private async processAIActions(response: string, data: TicketMessageEvent): Promise<void> {
-    if (!this.actionParser) {
-      // Fallback to basic string matching if no actionParser
-      const lower = response.toLowerCase();
-      if (lower.includes("je note") || lower.includes("je crée") ||
-          lower.includes("i'll create") || lower.includes("i'll note") ||
-          lower.includes("let me note")) {
-        try {
-          await this.bridge.addTodo({
-            guildId: data.guildId,
-            title: `Ticket: ${data.content.substring(0, 100)}`,
-            description: `Channel ${data.channelId}, user ${data.userId}`,
-            priority: "normal",
-          });
-        } catch {}
+  private async processOmniResponse(
+    channelId: string,
+    data: TicketMessageEvent | TicketNewEvent,
+    rawText: string,
+    lang: SupportedLanguage
+  ): Promise<void> {
+    const channel = await this.selfbot.channels.fetch(channelId).catch(() => null);
+    if (!channel || !channel.isText()) return;
+
+    let responseText = rawText;
+    let parsed: any = null;
+
+    try {
+      const match = rawText.match(/\{[\s\S]*\}/);
+      if (match) {
+        parsed = JSON.parse(match[0]);
+        if (parsed.response) responseText = parsed.response;
       }
+    } catch {
+      logger.warn(`Failed to parse Omni JSON in ${channelId}, Using string: ${rawText}`);
+    }
+
+    if (!parsed) {
+      this.context.addMessage(channelId, "model", responseText);
+      const baseDelay = parseInt(process.env["AI_RESPONSE_DELAY"] ?? "3");
+      await simulateTyping(channel, responseText.length, baseDelay);
+      await (channel as any).send(responseText);
       return;
     }
 
-    try {
-      const state = this.context.get(data.channelId);
-      const actions = await this.actionParser.detectActions(
-        this.context.getMessages(data.channelId),
-        response,
-        {
-          channelId: data.channelId,
-          guildId: data.guildId,
-          userId: data.userId,
-          ticketType: state?.ticketType ?? undefined,
-        }
-      );
+    // Process parsed data
+    const state = this.context.get(channelId);
+    if (parsed.classification) {
+      this.context.setTicketType(channelId, parsed.classification, state?.confidence ?? 0.8);
+    }
+    
+    if (parsed.sentiment) {
+      let score = 0.5;
+      if (parsed.sentiment === "positive") score = 0.9;
+      if (parsed.sentiment === "negative") score = 0.2;
+      if (parsed.sentiment === "frustrated") score = 0.1;
+      
+      if (!this.ticketSentiments.has(channelId)) this.ticketSentiments.set(channelId, []);
+      this.ticketSentiments.get(channelId)!.push({ sentiment: parsed.sentiment, score, timestamp: Date.now() });
+      if (parsed.sentiment === "frustrated") this.context.reduceConfidence(channelId, 0.05);
+    }
 
-      for (const action of actions) {
-        if (action.confidence < 0.7) continue;
-        switch (action.type) {
-          case "todo": {
-            const todoData = action.data as { title: string; description?: string; priority?: string };
-            await this.bridge.addTodo({
-              guildId: data.guildId,
-              title: todoData.title,
-              description: todoData.description,
-              priority: (todoData.priority as any) ?? "normal",
-            });
-            break;
-          }
-          case "reminder": {
-            const reminderData = action.data as { content: string; delayMs: number };
-            await this.bridge.createReminder({
-              guildId: data.guildId,
-              userId: data.userId,
-              content: reminderData.content,
-              channelId: data.channelId,
-              triggerAt: new Date(Date.now() + reminderData.delayMs).toISOString(),
-              sourceType: "ticket",
-              sourceId: data.channelId,
-            });
-            break;
-          }
-          case "escalate": {
-            const escalateData = action.data as { reason: string; specialtyNeeded?: string };
-            const lang = this.ticketLanguages.get(data.channelId) ?? "en";
-            
-            // Check if the AI's natural response already sounds like an escalation
-            // to avoid sending a redundant canned message.
-            const lowerResponse = response.toLowerCase();
-            const alreadyAwaitingTeam = 
-              lowerResponse.includes("team") || 
-              lowerResponse.includes("manager") || 
-              lowerResponse.includes("someone") ||
-              lowerResponse.includes("ask") ||
-              lowerResponse.includes("attends") ||
-              lowerResponse.includes("un instant") ||
-              lowerResponse.includes("patience");
+    // Send Response First
+    this.context.addMessage(channelId, "model", responseText);
+    const baseDelay = parseInt(process.env["AI_RESPONSE_DELAY"] ?? "3");
+    await simulateTyping(channel, responseText.length, baseDelay);
+    await (channel as any).send(responseText);
 
-            // Call handleEscalation with silence if AI already acknowledged it.
-            await this.handleEscalation(data, lang, escalateData.reason, escalateData.specialtyNeeded, alreadyAwaitingTeam);
-            break;
-          }
-          case "close": {
-            logger.ai(`AI decided to close the ticket in ${data.channelId}`);
-            try {
-              await this.bridge.requestClose({
-                channelId: data.channelId,
-                guildId: data.guildId,
-                userId: data.userId,
-              });
-            } catch (err) {
-              logger.error(`Failed to request close for AI action in ${data.channelId}:`, err);
-            }
-            break;
-          }
+    // --- ACTIONS ---
+    if (parsed.needs_escalation) {
+      const lowerResponse = responseText.toLowerCase();
+      const alreadyAwaitingTeam = lowerResponse.match(/team|manager|someone|ask|attends|instant|patience/);
+      await this.handleEscalation(data as any, lang, parsed.escalation_reason, parsed.escalation_specialty, !!alreadyAwaitingTeam);
+    }
+
+    if (parsed.rename_to && typeof parsed.rename_to === "string" && parsed.rename_to.length > 2) {
+      try {
+        let newName = parsed.rename_to.trim().toLowerCase().replace(/[^a-z0-9-]/g, "").substring(0, 30);
+        const ticketNumMatch = channel && "name" in channel ? (channel as any).name.match(/-\d+$/) : null;
+        const suffix = ticketNumMatch ? ticketNumMatch[0] : "";
+        if (!newName.endsWith(suffix) && suffix !== "") newName += suffix;
+        if (channel && "name" in channel && (channel as any).name !== newName) {
+           logger.ai(`Renaming ticket ${channelId} to ${newName}`);
+           await this.bridge.renameTicket({ channelId, guildId: data.guildId, newName });
         }
+      } catch (err) {
+        logger.warn(`Failed to rename ticket via Omni JSON:`, err);
       }
-    } catch (err) {
-      logger.error("Failed to process AI actions:", err);
+    }
+
+    if (parsed.is_resolved) {
+      logger.ai(`AI marked ticket resolved in ${channelId}`);
+      try {
+        await this.bridge.requestClose({ channelId: data.channelId, guildId: data.guildId, userId: data.userId });
+      } catch {}
+    }
+
+    if (parsed.todos && Array.isArray(parsed.todos)) {
+      for (const t of parsed.todos) {
+        if (!t.title) continue;
+        try {
+          await this.bridge.addTodo({
+            guildId: data.guildId,
+            title: t.title,
+            priority: t.priority ?? "normal",
+          });
+        } catch {}
+      }
     }
   }
 }
