@@ -263,12 +263,18 @@ function startDailySummaryScheduler(client: any) {
              const yesterday = new Date();
              yesterday.setDate(yesterday.getDate() - 1);
              const closedTickets = await client.db.ticket.findMany({
-                 where: { guildId: guildConfig.id, closedAt: { gte: yesterday } },
-                 include: { summary: true }
+                 where: { guildId: guildConfig.id, closedAt: { gte: yesterday } }
              });
              
              if (closedTickets.length > 0 && client.aiNamespace && client.aiNamespace.sockets.size > 0) {
-                 const ticketData = closedTickets.map((t: any) => `Ticket ${t.number} | Subject: ${t.subject} | Sentiment: ${t.summary?.sentiment ?? "unknown"} | Summary: ${t.summary?.summary ?? "None"}`).slice(0, 30).join("\\n");
+                 const ticketIds = closedTickets.map((t: any) => t.id);
+                 const summaries = await client.db.ticketSummary.findMany({ where: { ticketId: { in: ticketIds } } });
+                 const summaryMap = new Map(summaries.map((s: any) => [s.ticketId, s]));
+                 
+                 const ticketData = closedTickets.map((t: any) => {
+                     const sum = summaryMap.get(t.id) as any;
+                     return `Ticket ${t.number} | Subject: ${t.subject} | Sentiment: ${sum?.sentiment ?? "unknown"} | Summary: ${sum?.summary ?? "None"}`;
+                 }).slice(0, 30).join("\\n");
                  const aiSocket = Array.from(client.aiNamespace.sockets.values())[0] as any;
                  
                  aiSocket.emit("query:generateMoraleReport", { data: ticketData }, async (res: any) => {
@@ -293,12 +299,18 @@ function startDailySummaryScheduler(client: any) {
                  lastWeek.setDate(lastWeek.getDate() - 7);
                  
                  const weeklyTickets = await client.db.ticket.findMany({
-                     where: { guildId: guildConfig.id, closedAt: { gte: lastWeek } },
-                     include: { summary: true }
+                     where: { guildId: guildConfig.id, closedAt: { gte: lastWeek } }
                  });
 
                  if (weeklyTickets.length > 0 && client.aiNamespace && client.aiNamespace.sockets.size > 0) {
-                     const weeklyData = weeklyTickets.map((t: any) => `Subject: ${t.subject} | Type: ${t.category} | Summary: ${t.summary?.summary ?? "None"}`).slice(0, 100).join("\\n");
+                     const ticketIds = weeklyTickets.map((t: any) => t.id);
+                     const summaries = await client.db.ticketSummary.findMany({ where: { ticketId: { in: ticketIds } } });
+                     const summaryMap = new Map(summaries.map((s: any) => [s.ticketId, s]));
+                     
+                     const weeklyData = weeklyTickets.map((t: any) => {
+                         const sum = summaryMap.get(t.id) as any;
+                         return `Subject: ${t.subject} | Type: ${t.category} | Summary: ${sum?.summary ?? "None"}`;
+                     }).slice(0, 100).join("\\n");
                      const aiSocket = Array.from(client.aiNamespace.sockets.values())[0] as any;
                      
                      aiSocket.emit("query:generateWeeklyFAQ", { data: weeklyData }, async (res: any) => {
