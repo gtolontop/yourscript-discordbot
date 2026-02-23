@@ -20,6 +20,7 @@ export interface OpenRouterOptions {
   ticketId?: string;
   guildId?: string;
   role?: "reader" | "executor";
+  responseFormat?: "json";
 }
 
 export class OpenRouterProvider implements AIProvider {
@@ -50,7 +51,7 @@ export class OpenRouterProvider implements AIProvider {
   private async chatRequest(
     model: string,
     messages: Array<{ role: string; content: string }>,
-    options: { temperature?: number; maxTokens?: number } = {}
+    options: { temperature?: number; maxTokens?: number; responseFormat?: "json" } = {}
   ): Promise<{ text: string; tokensIn: number; tokensOut: number; cachedTokens: number; model: string }> {
     const body: Record<string, unknown> = {
       model,
@@ -58,6 +59,10 @@ export class OpenRouterProvider implements AIProvider {
       temperature: options.temperature ?? 0.8,
       max_tokens: options.maxTokens ?? 1024,
     };
+
+    if (options.responseFormat === "json") {
+      body.response_format = { type: "json_object" };
+    }
 
     const response = await this.fetchWithRetry("https://openrouter.ai/api/v1/chat/completions", body);
 
@@ -137,6 +142,7 @@ export class OpenRouterProvider implements AIProvider {
     const result = await this.chatRequest(model, chatMessages, {
       temperature: options.temperature,
       maxTokens: options.maxTokens,
+      responseFormat: options.responseFormat,
     });
 
     const latencyMs = Date.now() - startMs;
