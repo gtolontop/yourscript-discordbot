@@ -150,17 +150,10 @@ export function getTicketSystemPrompt(
   let prompt = `${base}\n\n${typePrompt}`;
 
   if (knowledge && knowledge.length > 0) {
-    const sections: Record<string, string[]> = {};
+    prompt += "\n\nStore Facts:\n";
     for (const item of knowledge) {
-      if (!sections[item.category]) sections[item.category] = [];
-      sections[item.category]!.push(`${item.key}: ${item.value}`);
+      prompt += `- ${item.key}: ${item.value}\n`;
     }
-
-    prompt += "\n\nKB:";
-    for (const [cat, entries] of Object.entries(sections)) {
-      prompt += `\n[${cat}]\n${entries.join("\n")}`;
-    }
-    prompt += "\nUse KB naturally.";
   }
 
   if (context) {
@@ -168,8 +161,8 @@ export function getTicketSystemPrompt(
   }
 
   const langNames: Record<SupportedLanguage, string> = { en: "English", fr: "French", es: "Spanish", de: "German", pt: "Portuguese" };
-  prompt += `\nRespond in ${langNames[lang]}. Output ONLY raw JSON:`;
-  prompt += `\n{"classification":"service_inquiry|bug_report|role_request|partnership|general_support","sentiment":"positive|neutral|negative|frustrated","priority":1-10,"response":"<your message>","needs_escalation":false,"escalation_reason":null,"rename_to":null,"is_resolved":false,"todos":[]}`;
+  prompt += `\n\nCRITICAL: You MUST answer with ONLY a JSON object. No markdown, no extra text. Language for 'response': ${langNames[lang]}`;
+  prompt += `\n{"classification":"service_inquiry|bug_report|role_request|partnership|general_support","sentiment":"positive|neutral|negative|frustrated","priority":1-10,"response":"<your actual chat message to the user>","needs_escalation":false,"escalation_reason":null,"rename_to":null,"is_resolved":false,"todos":[]}`;
 
   return prompt;
 }
@@ -236,26 +229,10 @@ export function getDMSystemPrompt(
 
   // Knowledge base FIRST
   if (knowledge && knowledge.length > 0) {
-    const sections: Record<string, string[]> = {};
+    prompt += "\n\nStore Facts:\n";
     for (const item of knowledge) {
-      if (!sections[item.category]) sections[item.category] = [];
-      sections[item.category]!.push(`${item.key}: ${item.value}`);
+      prompt += `- ${item.key}: ${item.value}\n`;
     }
-
-    const categoryLabels: Record<string, string> = {
-      business: "BUSINESS INFO",
-      glossary: "GLOSSARY",
-      instructions: "CUSTOM INSTRUCTIONS",
-      faq: "FAQ",
-      product: "PRODUCTS & SERVICES",
-    };
-
-    prompt += "\n\n--- KNOWLEDGE BASE ---";
-    for (const [cat, entries] of Object.entries(sections)) {
-      const label = categoryLabels[cat] ?? cat.toUpperCase();
-      prompt += `\n\n${label}:\n${entries.join("\n")}`;
-    }
-    prompt += "\n--- END KNOWLEDGE BASE ---";
   }
 
   // Context LAST

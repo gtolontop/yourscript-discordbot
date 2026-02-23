@@ -29,7 +29,7 @@ export class MemoryManager {
       return history.memories
         .sort((a, b) => b.importance - a.importance)
         .slice(0, 5)
-        .map((m) => `[${m.type}] ${m.content}`);
+        .map((m) => `- ${m.content}`);
     }
 
     // Embed the query for similarity search
@@ -42,12 +42,12 @@ export class MemoryManager {
       return history.memories
         .sort((a, b) => b.importance - a.importance)
         .slice(0, 5)
-        .map((m) => `[${m.type}] ${m.content}`);
+        .map((m) => `- ${m.content}`);
     } catch (err) {
       logger.warn("Failed to embed query for memory retrieval, using fallback");
       return history.memories
         .slice(0, 5)
-        .map((m) => `[${m.type}] ${m.content}`);
+        .map((m) => `- ${m.content}`);
     }
   }
 
