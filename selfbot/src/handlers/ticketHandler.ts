@@ -479,7 +479,7 @@ export class TicketHandler {
     }
 
     const messages = state.messages.map((m) => ({ role: m.role, content: m.content }));
-    await this.memory.processTicketClose(data.guildId, state.userId, data.channelId, messages, state.ticketType);
+    await this.memory.processTicketClose(data.guildId, state.userId, data.channelId, messages, state.ticketType ?? undefined);
 
     this.context.remove(data.channelId);
     this.ticketLanguages.delete(data.channelId);
