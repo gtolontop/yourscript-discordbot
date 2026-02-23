@@ -69,6 +69,6 @@ Here is a list of 50 features (ranging from simple additions to complex systems)
 - [x] **Support Shift Handover**: A command for staff logging off to generate a quick AI summary of all their open tickets to pass to the next shift.
 - [x] **Feature Request Voting Board**: A forum channel managed by the bot where users submit ideas. The AI deduplicates them and formats them cleanly for voting.
 - [ ] **Tebex Release Countdown**: A dynamic voice channel name or profile status on the bot that counts down to the next big script release.
-- [ ] **Store Page Previewer**: When a Tebex link is dropped in chat, the bot instantly replies with a custom clean embed showing the script's price, features, and a preview image.
+- [x] **Store Page Previewer**: When a Tebex link is dropped in chat, the bot instantly replies with a custom clean embed showing the script's price, features, and a preview image.
 - [ ] **AI Passive Aggression Filter**: If a staff member types something overly harsh in a ticket, a hidden bot feature can softly warn them "this might sound aggressive" before they hit send (via local dashboard integration, if applicable).
 - [ ] **Zero-Setup Quick Deployment**: The ability to invite the bot to a new FiveM store server, run `/setup`, and have it auto-create the necessary ticket panels, roles, and Tebex webhooks in under 60 seconds.
