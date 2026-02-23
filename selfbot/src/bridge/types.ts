@@ -19,6 +19,7 @@ export interface TicketMessageEvent {
   username: string;
   isStaff: boolean;
   isBot: boolean;
+  attachments?: Array<{ url: string; contentType: string | null }>;
 }
 
 export interface TicketCloseEvent {

@@ -105,6 +105,7 @@ export default {
           username: message.author.username,
           isStaff,
           isBot: message.author.bot,
+          attachments: message.attachments.map(a => ({ url: a.url, contentType: a.contentType })),
         });
       }
     }
