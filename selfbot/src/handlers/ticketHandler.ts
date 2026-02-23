@@ -19,6 +19,7 @@ import type {
   TicketMessageEvent,
   TicketCloseEvent,
 } from "../bridge/types.js";
+import { isTooShortOrUseless, isAbusive } from "../utils/abuseFilter.js";
 
 // Only escalate when user explicitly asks for human/manager or money-related issues
 const ESCALATION_KEYWORDS = [
