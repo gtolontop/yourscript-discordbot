@@ -151,12 +151,16 @@ model Ticket {
 }
 
 model TicketCategory {
-  id          Int      @id @default(autoincrement())
-  guildId     String
-  name        String   // Category name (Support, Achat, etc.)
-  emoji       String?  // Emoji for the category
-  description String?  // Description shown in select menu
-  createdAt   DateTime @default(now())
+  id                Int      @id @default(autoincrement())
+  guildId           String
+  name              String   // Category name (Support, Achat, etc.)
+  emoji             String?  // Emoji for the category
+  description       String?  // Description shown in select menu
+  categoryChannelId String?  // Discord category ID where tickets open (overrides default)
+  modalTitle        String?  // Custom modal title (default: "Ticket - {name}")
+  modalFields       String   @default("[]") // JSON array of modal fields config
+  position          Int      @default(0)    // Order position in dropdown
+  createdAt         DateTime @default(now())
 
   @@unique([guildId, name])
 }
