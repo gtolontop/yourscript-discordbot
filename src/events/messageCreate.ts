@@ -34,6 +34,52 @@ export default {
       }
     }
 
+    // Store Page Previewer
+    const tebexURL = message.content.match(/https?:\/\/([a-zA-Z0-9-]+\.)?(tebex\.io|buycraft\.net)\/package\/([0-9]+)/i);
+    if (tebexURL) {
+      try {
+        const response = await fetch(tebexURL[0]);
+        if (response.ok) {
+           const html = await response.text();
+           
+           const getMeta = (property: string) => {
+              const match = html.match(new RegExp(`<meta\\s+(?:property|name)=["']${property}["']\\s+content=["'](.*?)["']`, 'i')) || 
+                            html.match(new RegExp(`<meta\\s+content=["'](.*?)["']\\s+(?:property|name)=["']${property}["']`, 'i'));
+              return match ? match[1] : null;
+           };
+
+           const title = getMeta("og:title") ?? getMeta("twitter:title");
+           let description = getMeta("og:description") ?? getMeta("twitter:description");
+           const image = getMeta("og:image") ?? getMeta("twitter:image");
+
+           if (title) {
+             const cleanDesc = description ? (description.length > 200 ? description.substring(0, 197) + "..." : description) : "Check the store for more details about this package.";
+             
+             const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = await import("discord.js");
+             const embed = new EmbedBuilder()
+               .setTitle(`🛒 ${title}`)
+               .setDescription(cleanDesc)
+               .setURL(tebexURL[0])
+               .setColor(0x00A8FF)
+               .setFooter({ text: "Store Preview", iconURL: "https://tebex.io/favicon.ico" });
+
+             if (image) embed.setImage(image);
+
+             const row = new ActionRowBuilder<any>().addComponents(
+                new ButtonBuilder()
+                   .setLabel("View Package")
+                   .setStyle(ButtonStyle.Link)
+                   .setURL(tebexURL[0])
+             );
+
+             await message.reply({ embeds: [embed], components: [row] }).catch(() => {});
+           }
+        }
+      } catch (err) {
+        // Silently fails for invalid loads
+      }
+    }
+
     // Update ticket last activity if message is in a ticket channel
     const ticket = await client.db.ticket.findUnique({
       where: { channelId: message.channelId },
