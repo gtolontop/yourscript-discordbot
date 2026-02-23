@@ -13,7 +13,7 @@ Here is a list of 50 features (ranging from simple additions to complex systems)
 
 ## 🤖 Advanced AI Capabilities
 
-- [ ] **Ultra-Cheap Image Recognition**: When a user posts a screenshot (e.g., an error), the bot passes it to a highly cost-efficient vision model. The bot simply reads the text/error from the image and outputs it so the main AI can understand it without burning tokens on heavy vision tasks.
+- [x] **Ultra-Cheap Image Recognition**: When a user posts a screenshot (e.g., an error), the bot passes it to a highly cost-efficient vision model. The bot simply reads the text/error from the image and outputs it so the main AI can understand it without burning tokens on heavy vision tasks.
 - [ ] **On-Demand Voice Note Parsing**: If a user sends a voice note, the bot replies with a blank "transcribing audio..." message. It uses an ultra-cheap model to transcribe it to text. The AI *only* acts once the text is ready.
 - [x] **Smart Prompt Builder via Command**: A command to feed the AI new facts (e.g., rules, product info). The bot passes the input to a cheap model to "clean and format" it properly before saving it to the permanent system prompt, ensuring the AI is incredibly smart and adapted to the specific store without manual rewriting.
 - [ ] **Emotion-aware Responses**: The AI should detect if a user is angry or frustrated over multiple messages and automatically adjust its tone to be more empathetic, while silently pinging a manager.
