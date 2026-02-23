@@ -527,7 +527,7 @@ async function handleKnowledge(
         interaction.editReply(errorMessage({ description: "AI request timed out after 15 seconds." }));
       }, 15000);
 
-      aiSocket.emit("query:generateLearning" as any, { text }, async (result: any) => {
+      (aiSocket as any).emit("query:generateLearning", { text }, async (result: any) => {
         clearTimeout(timeout);
         
         if (result.error) {
