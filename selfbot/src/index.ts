@@ -199,6 +199,24 @@ bridge.onQuery("query:generateHandover", async (data: any) => {
   }
 });
 
+bridge.onQuery("query:generateStaffReport", async (data: any) => {
+  try {
+    const ticketData = data.data;
+    if (!ticketData) return { text: "No closed tickets to analyze." };
+
+    const result = await ai.generateText(
+      "You are an AI generating a monthly staff performance report for a FiveM server. Based on this list of closed tickets (ClaimedBy, Rating, Sentiment), write a short performance summary (3-4 paragraphs) highlighting which staff members did well, who resolved the most, and general satisfaction. Keep it professional and constructive.",
+      [{ role: "user", content: ticketData }],
+      { temperature: 0.3, maxTokens: 500, taskType: "classification" } 
+    );
+    
+    return { text: result.text.trim() };
+  } catch (err: any) {
+    logger.error("Error generating staff report:", err);
+    return { error: err.message };
+  }
+});
+
 // Start everything
 async function main() {
   logger.info("Starting AI Selfbot...");

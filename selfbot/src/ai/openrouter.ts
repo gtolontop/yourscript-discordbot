@@ -31,8 +31,8 @@ export class OpenRouterProvider implements AIProvider {
   constructor(apiKey: string, budget: BudgetMonitor) {
     this.apiKey = apiKey;
     this.budget = budget;
-    this.siteUrl = process.env["OPENROUTER_SITE_URL"] ?? "https://discord-bot.local";
-    this.siteName = process.env["OPENROUTER_SITE_NAME"] ?? "Discord Bot AI";
+    this.siteUrl = process.env["OPENROUTER_SITE_URL"] ?? "https://your-script.com";
+    this.siteName = process.env["OPENROUTER_SITE_NAME"] ?? "Your Script";
   }
 
   /**
