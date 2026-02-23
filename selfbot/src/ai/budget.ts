@@ -6,6 +6,7 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   "deepseek/deepseek-v3.2": { input: 0.26, output: 0.38 },
   "meta-llama/llama-3.3-70b-instruct": { input: 0.13, output: 0.40 },
   "google/gemini-2.5-flash": { input: 0.075, output: 0.30 },
+  "google/gemini-2.5-flash-lite": { input: 0.075, output: 0.30 },
   "openai/gpt-4o-mini": { input: 0.15, output: 0.60 },
   "openai/text-embedding-3-small": { input: 0.02, output: 0.00 },
 };

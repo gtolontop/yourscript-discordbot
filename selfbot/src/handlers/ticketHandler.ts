@@ -410,9 +410,13 @@ export class TicketHandler {
       const taskType = this.determineTaskType(state.ticketType, state.exchangeCount);
       const model = this.router.getModel(taskType);
 
+      const fullPrompt = this.context.getFullSystemPrompt(channelId);
+      const messagesContext = this.context.getMessages(channelId);
+      logger.ai(`Generating response in ${channelId} | Model: ${model} | Task: ${taskType} | System Prompt Length: ${fullPrompt.length} chars | History: ${messagesContext.length} messages`);
+
       const response = await this.ai.generateText(
-        this.context.getFullSystemPrompt(channelId),
-        this.context.getMessages(channelId),
+        fullPrompt,
+        messagesContext,
         {
           model,
           temperature: this.router.getTemperature(taskType),
@@ -439,7 +443,7 @@ export class TicketHandler {
           const result = await this.ai.generateText(
             "Based on the conversation, generate a short, clean, descriptive channel name for this ticket (max 20 chars). Only use lowercase letters, numbers, and dashes. Example: esx-inventory-bug, tebex-refund, role-request, etc. Respond ONLY with the suggested name, nothing else.",
             [{ role: "user", content: messagesSnippet }],
-            { temperature: 0.1, maxTokens: 20, taskType: "classification", ticketId: channelId, guildId: data.guildId }
+            { model: this.router.getModel("classification"), temperature: 0.1, maxTokens: 20, taskType: "classification", ticketId: channelId, guildId: data.guildId }
           );
           
           let newName = result.text.trim().toLowerCase().replace(/[^a-z0-9-]/g, "").substring(0, 30);

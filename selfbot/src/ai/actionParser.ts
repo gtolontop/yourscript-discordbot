@@ -113,6 +113,7 @@ export class ActionParser {
         "You are an action extractor. Respond only with valid JSON arrays.",
         [{ role: "user", content: prompt }],
         {
+          model: "google/gemini-2.5-flash-lite", // Force the lightweight model
           temperature: 0.1,
           maxTokens: 300,
           taskType: "action_detection",
