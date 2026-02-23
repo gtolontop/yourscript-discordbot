@@ -58,6 +58,7 @@ const staffBackedOff = new Map<string, { staffId: string; lastStaffMsg: number; 
 
 // Track the last time a user pinged staff in a channel to prevent spam (Smart Ping Management)
 const lastStaffPings = new Map<string, number>();
+const ticketRenamed = new Set<string>(); // Track tickets already renamed to avoid spamming renames
 
 export class TicketHandler {
   private context: ContextManager;
@@ -338,50 +339,12 @@ export class TicketHandler {
       return;
     }
 
-    // Sentiment check + track for summary temperature
-    let sentiment = "neutral";
-    let sentimentScore = 0.5;
-    try {
-      const result = await this.ai.analyzeSentiment(data.content, {
-        ticketId: channelId,
-        guildId: data.guildId,
-      });
-      sentiment = result.sentiment;
-      sentimentScore = result.score;
-    } catch {}
-
-    // Track sentiment history for summaries
-    if (!this.ticketSentiments.has(channelId)) {
-      this.ticketSentiments.set(channelId, []);
-    }
-    this.ticketSentiments.get(channelId)!.push({
-      sentiment,
-      score: sentimentScore,
-      timestamp: Date.now(),
-    });
-
-    // Only reduce confidence if content suggests AI doesn't know, not just rudeness
-    if (sentiment === "frustrated") {
-      this.context.reduceConfidence(channelId, 0.05);
-    }
+    // Sentiment is now handled inside the Omni JSON response — no separate call needed
 
     // Only escalate on very low confidence (AI really can't handle this)
     if (state.confidence < MIN_CONFIDENCE_THRESHOLD && state.exchangeCount >= 3) {
       await this.handleEscalation(data, lang);
       return;
-    }
-
-    // Periodic memory refresh every 5 exchanges
-    if (state.exchangeCount > 0 && state.exchangeCount % 5 === 0) {
-      try {
-        const memories = await this.memory.retrieveMemories(data.guildId, state.userId, data.content);
-        this.context.setMemories(channelId, memories);
-        // Rebuild system prompt with fresh memories
-        const knowledge = await this.getKnowledge(data.guildId);
-        const memoryContext = memories.length > 0 ? `You know this about the client:\n${memories.join("\n")}` : undefined;
-        const systemPrompt = getTicketSystemPrompt(state.ticketType ?? "general_support", lang, memoryContext, knowledge);
-        this.context.setSystemPrompt(channelId, systemPrompt);
-      } catch {}
     }
 
     // Add message and respond
@@ -484,6 +447,7 @@ export class TicketHandler {
     this.context.remove(data.channelId);
     this.ticketLanguages.delete(data.channelId);
     this.ticketSentiments.delete(data.channelId);
+    ticketRenamed.delete(data.channelId);
   }
 
   getActiveCount(): number {
@@ -786,7 +750,15 @@ export class TicketHandler {
     this.context.addMessage(channelId, "model", responseText);
     const baseDelay = parseInt(process.env["AI_RESPONSE_DELAY"] ?? "3");
     await simulateTyping(channel, responseText.length, baseDelay);
-    await (channel as any).send(responseText);
+    try {
+      await (channel as any).send(responseText);
+    } catch (err: any) {
+      if (err.code === 10003) {
+        logger.ai(`Channel ${channelId} was deleted/closed before response could be sent`);
+        return; // Stop all actions, ticket is gone
+      }
+      throw err;
+    }
 
     // --- ACTIONS ---
     if (parsed.needs_escalation) {
@@ -795,7 +767,7 @@ export class TicketHandler {
       await this.handleEscalation(data as any, lang, parsed.escalation_reason, parsed.escalation_specialty, !!alreadyAwaitingTeam);
     }
 
-    if (parsed.rename_to && typeof parsed.rename_to === "string" && parsed.rename_to.length > 2) {
+    if (parsed.rename_to && typeof parsed.rename_to === "string" && parsed.rename_to.length > 2 && !ticketRenamed.has(channelId)) {
       try {
         let newName = parsed.rename_to.trim().toLowerCase().replace(/[^a-z0-9-]/g, "").substring(0, 30);
         const ticketNumMatch = channel && "name" in channel ? (channel as any).name.match(/-\d+$/) : null;
@@ -805,6 +777,7 @@ export class TicketHandler {
            logger.ai(`Renaming ticket ${channelId} to ${newName}`);
            await this.bridge.renameTicket({ channelId, guildId: data.guildId, newName });
         }
+        ticketRenamed.add(channelId); // Only rename once per ticket
       } catch (err) {
         logger.warn(`Failed to rename ticket via Omni JSON:`, err);
       }
