@@ -23,6 +23,7 @@ import type {
   SendToThreadAction,
   CreateReminderAction,
   CreateMemoryAction,
+  RenameTicketAction,
   GenerateSummaryQuery,
   TicketSummaryResponse,
   TicketQuery,
@@ -147,6 +148,10 @@ export class BotBridge {
 
   async closeTicket(data: CloseTicketAction): Promise<{ success: boolean; error?: string }> {
     return this.callAction("action:closeTicket", data);
+  }
+
+  async renameTicket(data: RenameTicketAction): Promise<{ success: boolean; error?: string }> {
+    return this.callAction("action:renameTicket", data);
   }
 
   async sendAsBot(data: SendAsBotAction): Promise<{ success: boolean; error?: string }> {

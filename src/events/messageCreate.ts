@@ -3,6 +3,9 @@ import type { Event } from "../types/index.js";
 import { TicketService } from "../services/TicketService.js";
 import { XpService } from "../services/XpService.js";
 
+// Image scammer tracker
+const imageScamTracker = new Map<string, { channelIds: Set<string>; count: number; resetAt: number }>();
+
 export default {
   name: Events.MessageCreate,
   async execute(client, message: Message) {

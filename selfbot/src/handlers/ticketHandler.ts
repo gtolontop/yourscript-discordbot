@@ -405,6 +405,29 @@ export class TicketHandler {
 
       await this.processAIActions(response.text, data);
 
+      // Dynamic Ticket Naming
+      if (state.exchangeCount === 2) {
+        try {
+          const messagesSnippet = this.context.getMessages(channelId).slice(0, 4).map(m => m.content).join("\\n");
+          const result = await this.ai.generateText(
+            "Based on the conversation, generate a short, clean, descriptive channel name for this ticket (max 20 chars). Only use lowercase letters, numbers, and dashes. Example: esx-inventory-bug, tebex-refund, role-request, etc. Respond ONLY with the suggested name, nothing else.",
+            [{ role: "user", content: messagesSnippet }],
+            { temperature: 0.1, maxTokens: 20, taskType: "classification", ticketId: channelId, guildId: data.guildId }
+          );
+          
+          let newName = result.text.trim().toLowerCase().replace(/[^a-z0-9-]/g, "").substring(0, 30);
+          if (newName && newName.length >= 3) {
+            const ticketNumMatch = channel && "name" in channel ? (channel as any).name.match(/\\d+$/) : null;
+            const suffix = ticketNumMatch ? `-${ticketNumMatch[0]}` : "";
+            newName = `${newName}${suffix}`;
+            logger.ai(`Renaming ticket ${channelId} to ${newName}`);
+            await this.bridge.renameTicket({ channelId, guildId: data.guildId, newName });
+          }
+        } catch {
+          // Ignore renaming failure
+        }
+      }
+
       // Proactive suggestion every 4 exchanges
       if (state.exchangeCount > 0 && state.exchangeCount % 4 === 0) {
         try {
