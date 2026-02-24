@@ -2,8 +2,7 @@ import "dotenv/config";
 import { SelfBotClient } from "./client/SelfBotClient.js";
 import { BotBridge } from "./bridge/BotBridge.js";
 import { OpenRouterProvider } from "./ai/openrouter.js";
-import { BudgetMonitor, type AlertLevel } from "./ai/budget.js";
-import { ModelRouter } from "./ai/router.js";
+import { ModelRouter, type AlertLevel } from "./ai/router.js";
 import { ActionParser } from "./ai/actionParser.js";
 import { TicketHandler } from "./handlers/ticketHandler.js";
 import { DMHandler } from "./handlers/dmHandler.js";
@@ -36,8 +35,8 @@ if (!AI_SECRET) {
 const selfbot = new SelfBotClient();
 const bridge = new BotBridge(BOT_SERVER_URL, AI_SECRET);
 
-// Budget monitor with Discord alert callbacks
-const budget = new BudgetMonitor({
+// Unified model router (routing + budget + rate limiting)
+const router = new ModelRouter({
   dailyLimitUsd: AI_DAILY_BUDGET,
   onAlert: (level: AlertLevel, spend: number, limit: number) => {
     if (!AI_BUDGET_ALERT_CHANNEL) return;
@@ -75,15 +74,14 @@ const budget = new BudgetMonitor({
   },
 });
 
-const router = new ModelRouter();
-const ai = new OpenRouterProvider(OPENROUTER_API_KEY, budget, router);
+const ai = new OpenRouterProvider(OPENROUTER_API_KEY, router);
 const actionParser = new ActionParser(ai);
 
 // Initialize handlers
 const ticketHandler = new TicketHandler(selfbot, bridge, ai, router, actionParser);
 const dmHandler = new DMHandler(selfbot, bridge, ai, router, actionParser);
 const reviewHandler = new ReviewHandler(bridge);
-const reportService = new ReportService(bridge, budget, ticketHandler, dmHandler);
+const reportService = new ReportService(bridge, router, ticketHandler, dmHandler);
 
 // Register bridge event handlers
 bridge.on("ticket:new", (data) => ticketHandler.handleNewTicket(data));
