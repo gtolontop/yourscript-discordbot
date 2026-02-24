@@ -119,9 +119,7 @@ export class OpenRouterProvider implements AIProvider {
       throw new Error("AI budget exceeded - requests blocked");
     }
 
-    const model = this.resolveModel(options);
     const startMs = Date.now();
-
     const chatMessages = [
       { role: "system", content: systemPrompt },
       ...messages.map((m) => ({
@@ -130,11 +128,48 @@ export class OpenRouterProvider implements AIProvider {
       })),
     ];
 
-    const result = await this.chatRequest(model, chatMessages, {
-      temperature: options.temperature,
-      maxTokens: options.maxTokens,
-      responseFormat: options.responseFormat,
-    });
+    const taskType = (options.taskType as TaskType) || "conversation";
+    let waterfall: string[];
+    
+    try {
+      waterfall = this.router.getWaterfall(taskType);
+    } catch {
+      waterfall = [options.model ?? "meta-llama/llama-3.1-8b-instruct:free"];
+    }
+
+    if (options.model && !waterfall.includes(options.model)) {
+      waterfall.unshift(options.model);
+    }
+
+    let lastError: Error | null = null;
+    let result: any = null;
+
+    for (const model of waterfall) {
+      // Don't skip if the specific model was requested dynamically 
+      if (this.router.isHardBanned(model) && model !== options.model) continue;
+
+      try {
+        this.router.recordUsage(model);
+        result = await this.chatRequest(model, chatMessages, {
+          temperature: options.temperature ?? this.router.getTemperature(taskType as TaskType),
+          maxTokens: options.maxTokens ?? this.router.getMaxTokens(taskType as TaskType),
+          responseFormat: options.responseFormat,
+        });
+        break; // Success
+      } catch (err: any) {
+        lastError = err;
+        logger.warn(`Model ${model} failed for ${taskType}: ${err.message}`);
+        
+        // Handle rate limiting fast-fail for fallbacks
+        if (err.message.includes("429") || err.message.includes("50")) {
+          this.router.markRateLimited(model, 60);
+        }
+      }
+    }
+
+    if (!result) {
+      throw new Error(`All models failed in waterfall for ${taskType}. Last error: ${lastError?.message}`);
+    }
 
     const latencyMs = Date.now() - startMs;
 
@@ -144,7 +179,7 @@ export class OpenRouterProvider implements AIProvider {
       tokensOut: result.tokensOut,
       cachedTokens: result.cachedTokens,
       latencyMs,
-      taskType: options.taskType ?? "conversation",
+      taskType,
       ticketId: options.ticketId,
       guildId: options.guildId,
     });
@@ -155,7 +190,7 @@ export class OpenRouterProvider implements AIProvider {
       tokensUsed: result.tokensIn + result.tokensOut,
     };
   }
-
+  
   async generateEmbedding(text: string): Promise<EmbeddingResponse> {
     if (this.budget.isOverBudget()) {
       throw new Error("AI budget exceeded - requests blocked");

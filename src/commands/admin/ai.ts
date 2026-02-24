@@ -1,6 +1,11 @@
 import {
   SlashCommandBuilder,
   PermissionFlagsBits,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ChannelSelectMenuBuilder,
+  ChannelType,
 } from "discord.js";
 import type { Command } from "../../types/index.js";
 import { createMessage, successMessage, errorMessage } from "../../utils/index.js";
@@ -268,7 +273,6 @@ export default {
 
       case "embed": {
         const prompt = interaction.options.getString("prompt", true);
-        const targetChannel = interaction.options.getChannel("channel") ?? interaction.channel;
         
         await interaction.deferReply({ ephemeral: true });
 
@@ -301,13 +305,41 @@ export default {
                    ...(embedData.footer && { footer: embedData.footer }),
                    ...(embedData.fields && { fields: embedData.fields })
                 });
-                
-                if (!targetChannel) {
-                   return interaction.editReply(errorMessage({ description: `Could not determine target channel.` }));
-                }
 
-                await (targetChannel as any).send(msg);
-                return interaction.editReply(successMessage({ description: `Embed generated and sent to <#${targetChannel.id}>` }));
+                // Enregistre en mémoire
+                const sessionId = interaction.id;
+                aiEmbedSessions.set(sessionId, { embedData, prompt });
+                
+                // Nettoyage après 1h
+                setTimeout(() => {
+                   aiEmbedSessions.delete(sessionId);
+                }, 1000 * 60 * 60);
+                
+                // Affiche l'embed en ephemeral
+                await interaction.editReply({ ...msg });
+
+                const row1 = new ActionRowBuilder<ButtonBuilder>().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`ai_embed_modify_${sessionId}`)
+                        .setLabel("Modifier avec l'IA")
+                        .setEmoji("✏️")
+                        .setStyle(ButtonStyle.Secondary)
+                );
+
+                const row2 = new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(
+                    new ChannelSelectMenuBuilder()
+                        .setCustomId(`ai_embed_send_${sessionId}`)
+                        .setPlaceholder("Sélectionnez le salon d'envoi")
+                        .setChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+                );
+
+                await interaction.followUp({
+                    content: "-# Que souhaitez-vous faire avec cet embed ?",
+                    components: [row1, row2],
+                    ephemeral: true
+                });
+
+                return;
             } catch (err: any) {
                 return interaction.editReply(errorMessage({ description: `Error formatting embed: ${err.message}` }));
             }
