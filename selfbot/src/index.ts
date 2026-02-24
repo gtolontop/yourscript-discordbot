@@ -130,9 +130,9 @@ bridge.onQuery("query:generateEmbed", async (data: any) => {
   try {
     const prompt = data.prompt;
     const result = await ai.generateText(
-      "You are a specialized Discord embed generator. Based on the user's prompt, create a beautifully formatted embed. Respond ONLY with a valid JSON object matching this exact structure: {\n  \"title\": \"Short catchy title\",\n  \"description\": \"Detailed description, use markdown, emojis, line breaks\",\n  \"color\": \"#ff0000\" // A hex color that fits the theme\n}. Do not include any markdown blocks around the JSON.",
+      "You are a specialized Discord message generator. Based on the user's prompt, create a beautifully formatted message targeting a clean V2 style layout. Respond ONLY with a valid JSON object matching this structure: {\n  \"title\": \"Short catchy title\",\n  \"description\": \"Detailed description, use markdown, emojis, line breaks\",\n  \"color\": \"#ff0000\", // A hex color fitting the theme\n  \"footer\": \"Optional footer text\",\n  \"fields\": [ { \"name\": \"Field Name\", \"value\": \"Field Value\" } ] // Optional array of fields\n}. Do not include any markdown blocks around the JSON.",
       [{ role: "user", content: prompt }],
-      { temperature: 0.7, maxTokens: 400, taskType: "classification" } // Simple classification budget is fine
+      { temperature: 0.7, maxTokens: 800, taskType: "classification" }
     );
     
     const jsonMatch = result.text.match(/\{[\s\S]*\}/);
