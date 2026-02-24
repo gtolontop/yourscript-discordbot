@@ -62,12 +62,14 @@ export interface ModelRouterOptions {
 
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   // Free OpenRouter Models
+  "nousresearch/hermes-3-llama-3.1-405b:free": { input: 0.0, output: 0.0 },
   "meta-llama/llama-3.3-70b-instruct:free": { input: 0.0, output: 0.0 },
   "openai/gpt-oss-120b:free": { input: 0.0, output: 0.0 },
   "qwen/qwen3-next-80b-a3b-instruct:free": { input: 0.0, output: 0.0 },
   "qwen/qwen3-coder:free": { input: 0.0, output: 0.0 },
   "z-ai/glm-4.5-air:free": { input: 0.0, output: 0.0 },
   "arcee-ai/trinity-large-preview:free": { input: 0.0, output: 0.0 },
+  "arcee-ai/trinity-mini:free": { input: 0.0, output: 0.0 },
 
   // Paid OpenRouter Models
   "google/gemini-2.5-flash": { input: 0.075, output: 0.30 },
@@ -82,100 +84,48 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
 const CACHE_DISCOUNT = 0.80; // 80% discount on cached tokens
 
 // ========================
-// Model Waterfalls
+// Model Intelligence Scores (1-10)
 // ========================
 
-const BASIC_WATERFALL = [
-  "qwen/qwen3-coder:free",
-  "arcee-ai/trinity-large-preview:free",
-  "z-ai/glm-4.5-air:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "google/gemini-2.5-flash-lite-preview", // 0.02$
-  "meta-llama/llama-3.1-8b-instruct"      // 0.04$
-];
-
-const COMPLEX_WATERFALL = [
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "openai/gpt-oss-120b:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "qwen/qwen3-coder:free",
-  "arcee-ai/trinity-large-preview:free",
-  "z-ai/glm-4.5-air:free",
-  "google/gemini-2.5-flash-lite-preview", // 0.02$
-  "google/gemini-2.5-flash",              // 0.16$ (Final reliable backup)
-];
+const MODEL_INTELLIGENCE: Record<string, number> = {
+  "nousresearch/hermes-3-llama-3.1-405b:free": 10,
+  "deepseek/deepseek-v3.2": 10,
+  "x-ai/grok-4.1-fast": 9,
+  "openai/gpt-oss-120b:free": 9,
+  "qwen/qwen3-next-80b-a3b-instruct:free": 9,
+  "meta-llama/llama-3.3-70b-instruct:free": 8,
+  "qwen/qwen3-coder:free": 8,
+  "google/gemini-2.5-flash": 8,
+  "z-ai/glm-4.5-air:free": 7,
+  "arcee-ai/trinity-large-preview:free": 7,
+  "google/gemini-2.5-flash-lite": 6,
+  "google/gemini-2.5-flash-lite-preview": 6,
+  "arcee-ai/trinity-mini:free": 5,
+  "meta-llama/llama-3.1-8b-instruct": 5,
+  "openai/text-embedding-3-small": 5,
+};
 
 // ========================
-// Model Table (task -> waterfall)
+// Task Table (task -> intelligence req)
 // ========================
 
-interface ModelConfig {
-  model: string;
+interface TaskConfig {
+  requiredIntelligence: number;
   rpm: number;
   rpd: number;
-  fallbacks?: string[];
 }
 
-const MODEL_TABLE: Record<TaskType, ModelConfig> = {
-  classification: {
-    model: BASIC_WATERFALL[0],
-    fallbacks: BASIC_WATERFALL.slice(1),
-    rpm: 500,
-    rpd: 50000,
-  },
-  sentiment: {
-    model: BASIC_WATERFALL[0],
-    fallbacks: BASIC_WATERFALL.slice(1),
-    rpm: 500,
-    rpd: 50000,
-  },
-  quick_response: {
-    model: BASIC_WATERFALL[0],
-    fallbacks: BASIC_WATERFALL.slice(1),
-    rpm: 200,
-    rpd: 10000,
-  },
-  conversation: {
-    model: COMPLEX_WATERFALL[0],
-    fallbacks: COMPLEX_WATERFALL.slice(1),
-    rpm: 200,
-    rpd: 10000,
-  },
-  complex_analysis: {
-    model: COMPLEX_WATERFALL[0],
-    fallbacks: COMPLEX_WATERFALL.slice(1),
-    rpm: 200,
-    rpd: 10000,
-  },
-  summary: {
-    model: COMPLEX_WATERFALL[0],
-    fallbacks: COMPLEX_WATERFALL.slice(1),
-    rpm: 500,
-    rpd: 50000,
-  },
-  embedding: {
-    model: "openai/text-embedding-3-small",
-    rpm: 500,
-    rpd: 50000,
-  },
-  action_detection: {
-    model: COMPLEX_WATERFALL[0],
-    fallbacks: COMPLEX_WATERFALL.slice(1),
-    rpm: 500,
-    rpd: 50000,
-  },
-  dm_conversation: {
-    model: COMPLEX_WATERFALL[0],
-    fallbacks: COMPLEX_WATERFALL.slice(1),
-    rpm: 200,
-    rpd: 10000,
-  },
-  memory_extraction: {
-    model: COMPLEX_WATERFALL[0],
-    fallbacks: COMPLEX_WATERFALL.slice(1),
-    rpm: 500,
-    rpd: 50000,
-  },
+const TASK_TABLE: Record<TaskType, TaskConfig> = {
+  classification: { requiredIntelligence: 5, rpm: 500, rpd: 50000 },
+  sentiment: { requiredIntelligence: 5, rpm: 500, rpd: 50000 },
+  quick_response: { requiredIntelligence: 6, rpm: 200, rpd: 10000 },
+  action_detection: { requiredIntelligence: 7, rpm: 500, rpd: 50000 },
+  summary: { requiredIntelligence: 7, rpm: 500, rpd: 50000 },
+  conversation: { requiredIntelligence: 8, rpm: 200, rpd: 10000 },
+  dm_conversation: { requiredIntelligence: 8, rpm: 200, rpd: 10000 },
+  memory_extraction: { requiredIntelligence: 8, rpm: 500, rpd: 50000 },
+  complex_analysis: { requiredIntelligence: 9, rpm: 200, rpd: 10000 },
+  embedding: { requiredIntelligence: 0, rpm: 500, rpd: 50000 }, // Managed separately
 };
 
 // ========================
@@ -251,24 +201,44 @@ export class ModelRouter {
   }
 
   getWaterfall(taskType: TaskType): string[] {
-    const config = MODEL_TABLE[taskType];
-    if (!config) return ["google/gemini-2.5-flash-lite-preview"];
-
-    const waterfall: string[] = [];
-    
-    if (!this.isHardBanned(config.model) && this.isAvailable(config.model, config.rpm, config.rpd)) {
-      waterfall.push(config.model);
+    if (taskType === "embedding") {
+      return ["openai/text-embedding-3-small"];
     }
 
-    const fallbacks = config.fallbacks || ["deepseek/deepseek-v3.2"];
-    for (const fallback of fallbacks) {
-      if (!this.isHardBanned(fallback)) {
-        waterfall.push(fallback);
+    const config = TASK_TABLE[taskType];
+    if (!config) return ["google/gemini-2.5-flash-lite-preview"];
+
+    const reqInt = config.requiredIntelligence;
+    
+    // Ordered pool: free models first, then paid fallbacks ordered mostly by cost
+    const pool = [
+      "nousresearch/hermes-3-llama-3.1-405b:free",
+      "openai/gpt-oss-120b:free",
+      "qwen/qwen3-next-80b-a3b-instruct:free",
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "qwen/qwen3-coder:free",
+      "z-ai/glm-4.5-air:free",
+      "arcee-ai/trinity-large-preview:free",
+      "arcee-ai/trinity-mini:free",
+      "google/gemini-2.5-flash-lite-preview",
+      "meta-llama/llama-3.1-8b-instruct",
+      "google/gemini-2.5-flash",
+      "deepseek/deepseek-v3.2"
+    ];
+
+    const eligibleModels = pool.filter(m => (MODEL_INTELLIGENCE[m] || 0) >= reqInt);
+    const waterfall: string[] = [];
+    
+    for (const model of eligibleModels) {
+      if (!this.isHardBanned(model)) {
+        if (this.isAvailable(model, config.rpm, config.rpd)) {
+          waterfall.push(model);
+        }
       }
     }
 
     if (waterfall.length === 0) {
-      return [config.model, ...fallbacks];
+      return [eligibleModels[0] || "google/gemini-2.5-flash-lite-preview"];
     }
 
     return waterfall;
