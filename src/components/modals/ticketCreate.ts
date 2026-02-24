@@ -19,10 +19,11 @@ export default {
 
     // We collect all fields dynamically since modals can now be customized
     try {
-      interaction.fields.fields.forEach((field) => {
+      interaction.fields.fields.forEach((fieldObj) => {
+        const field = fieldObj as any;
         if (field.customId === "subject") {
-          subject = field.value.trim() || undefined;
-        } else if (field.value.trim()) {
+          subject = field.value?.trim() || undefined;
+        } else if (field.value?.trim()) {
            extraData[field.customId] = field.value.trim();
         }
       });
