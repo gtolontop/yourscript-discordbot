@@ -3,8 +3,8 @@ import { BudgetMonitor } from "./budget.js";
 import { logger } from "../utils/logger.js";
 
 const MODELS = {
-  READER: "google/gemini-2.5-flash-lite",
-  EXECUTOR: "deepseek/deepseek-v3.2",
+  READER: "meta-llama/llama-3.1-8b-instruct:free",
+  EXECUTOR: "meta-llama/llama-3.3-70b-instruct:free",
   EMBEDDING: "openai/text-embedding-3-small",
 } as const;
 
