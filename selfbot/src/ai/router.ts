@@ -16,43 +16,49 @@ interface ModelConfig {
   model: string;
   rpm: number;
   rpd: number;
-  fallback?: string;
+  fallbacks?: string[];
 }
+
+const FREE_FALLBACKS = [
+  "qwen/qwen-2.5-72b-instruct:free",
+  "google/gemini-2.5-flash-lite-preview", // 0.02$ backup
+  "meta-llama/llama-3.1-8b-instruct"      // cheap final backup
+];
 
 const MODEL_TABLE: Record<TaskType, ModelConfig> = {
   classification: {
-    model: "meta-llama/llama-3.1-8b-instruct",
-    fallback: "google/gemini-2.5-flash-lite-preview",
+    model: "meta-llama/llama-3.1-8b-instruct:free",
+    fallbacks: FREE_FALLBACKS,
     rpm: 500,
     rpd: 50000,
   },
   sentiment: {
-    model: "meta-llama/llama-3.1-8b-instruct",
-    fallback: "google/gemini-2.5-flash-lite-preview",
+    model: "meta-llama/llama-3.1-8b-instruct:free",
+    fallbacks: FREE_FALLBACKS,
     rpm: 500,
     rpd: 50000,
   },
   quick_response: {
-    model: "meta-llama/llama-3.1-8b-instruct",
-    fallback: "google/gemini-2.5-flash-lite-preview",
+    model: "meta-llama/llama-3.1-8b-instruct:free",
+    fallbacks: FREE_FALLBACKS,
     rpm: 200,
     rpd: 10000,
   },
   conversation: {
-    model: "google/gemini-2.5-flash-lite-preview",
-    fallback: "meta-llama/llama-3.1-8b-instruct",
+    model: "meta-llama/llama-3.3-70b-instruct:free",
+    fallbacks: [...FREE_FALLBACKS, "google/gemini-2.5-flash"],
     rpm: 200,
     rpd: 10000,
   },
   complex_analysis: {
-    model: "google/gemini-2.5-flash-lite-preview",
-    fallback: "meta-llama/llama-3.1-8b-instruct",
+    model: "meta-llama/llama-3.3-70b-instruct:free",
+    fallbacks: [...FREE_FALLBACKS, "google/gemini-2.5-flash"],
     rpm: 200,
     rpd: 10000,
   },
   summary: {
-    model: "google/gemini-2.5-flash-lite-preview",
-    fallback: "meta-llama/llama-3.1-8b-instruct",
+    model: "meta-llama/llama-3.3-70b-instruct:free",
+    fallbacks: [...FREE_FALLBACKS, "google/gemini-2.5-flash"],
     rpm: 500,
     rpd: 50000,
   },
@@ -62,20 +68,20 @@ const MODEL_TABLE: Record<TaskType, ModelConfig> = {
     rpd: 50000,
   },
   action_detection: {
-    model: "google/gemini-2.5-flash-lite-preview",
-    fallback: "meta-llama/llama-3.1-8b-instruct",
+    model: "meta-llama/llama-3.3-70b-instruct:free",
+    fallbacks: [...FREE_FALLBACKS, "google/gemini-2.5-flash"],
     rpm: 500,
     rpd: 50000,
   },
   dm_conversation: {
-    model: "google/gemini-2.5-flash-lite-preview",
-    fallback: "meta-llama/llama-3.1-8b-instruct",
+    model: "meta-llama/llama-3.3-70b-instruct:free",
+    fallbacks: [...FREE_FALLBACKS, "google/gemini-2.5-flash"],
     rpm: 200,
     rpd: 10000,
   },
   memory_extraction: {
-    model: "google/gemini-2.5-flash-lite-preview",
-    fallback: "meta-llama/llama-3.1-8b-instruct",
+    model: "meta-llama/llama-3.3-70b-instruct:free",
+    fallbacks: [...FREE_FALLBACKS, "google/gemini-2.5-flash"],
     rpm: 500,
     rpd: 50000,
   },
@@ -121,13 +127,15 @@ export class ModelRouter {
       return config.model;
     }
 
-    // Generic fallback: Use defined fallback or grok
-    const fallback = config.fallback || "deepseek/deepseek-v3.2";
+    // Generic fallback: Iterate over defined fallbacks
+    const fallbacks = config.fallbacks || ["deepseek/deepseek-v3.2"];
 
-    if (!this.isHardBanned(fallback)) {
-      logger.ai(`Rate limited on ${config.model}, falling back to ${fallback}`);
-      this.recordUsage(fallback);
-      return fallback;
+    for (const fallback of fallbacks) {
+      if (!this.isHardBanned(fallback)) {
+        logger.ai(`Rate limited on ${config.model}, falling back to ${fallback}`);
+        this.recordUsage(fallback);
+        return fallback;
+      }
     }
 
     // Last resort: return primary anyway, OpenRouter will manage
