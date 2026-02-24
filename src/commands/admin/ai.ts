@@ -288,21 +288,26 @@ export default {
                 return interaction.editReply(errorMessage({ description: `AI Failed: ${result.error}` }));
             }
             try {
-                const { EmbedBuilder } = await import("discord.js");
                 const embedData = result.embed;
-                const embed = new EmbedBuilder();
-                if (embedData.title) embed.setTitle(embedData.title);
-                if (embedData.description) embed.setDescription(embedData.description);
+                let numericColor: number | undefined;
                 if (embedData.color) {
                    const c = parseInt(embedData.color.replace("#", ""), 16);
-                   if (!isNaN(c)) embed.setColor(c);
+                   if (!isNaN(c)) numericColor = c;
                 }
+                
+                const msg = createMessage({
+                   title: embedData.title,
+                   description: embedData.description || "Generated without description",
+                   ...(numericColor !== undefined ? { color: numericColor } : { color: "Primary" }),
+                   ...(embedData.footer && { footer: embedData.footer }),
+                   ...(embedData.fields && { fields: embedData.fields })
+                });
                 
                 if (!targetChannel) {
                    return interaction.editReply(errorMessage({ description: `Could not determine target channel.` }));
                 }
 
-                await (targetChannel as any).send({ embeds: [embed] });
+                await (targetChannel as any).send(msg);
                 return interaction.editReply(successMessage({ description: `Embed generated and sent to <#${targetChannel.id}>` }));
             } catch (err: any) {
                 return interaction.editReply(errorMessage({ description: `Error formatting embed: ${err.message}` }));
