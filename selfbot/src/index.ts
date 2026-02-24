@@ -135,7 +135,7 @@ bridge.onQuery("query:generateEmbed", async (data: any) => {
       { temperature: 0.7, maxTokens: 400, taskType: "classification" } // Simple classification budget is fine
     );
     
-    const jsonMatch = result.text.match(/\\{[\s\S]*\\}/);
+    const jsonMatch = result.text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return { error: "Failed to parse JSON from AI response." };
     
     return { embed: JSON.parse(jsonMatch[0]) };
