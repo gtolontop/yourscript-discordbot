@@ -333,7 +333,7 @@ export class TicketService {
           `**Subject:** ${ticket.subject ?? "None"}`,
           `**Category:** ${ticket.category ?? "None"}`,
           `**Messages:** ${messageCount}`,
-          `**Cost:** $${ticketCost.totalCost.toFixed(4)}`,
+          `**Cost:** $${ticketCost.totalCost.toFixed(3)}`,
         ];
 
         if (aiSummary) {
