@@ -476,8 +476,8 @@ export class TicketHandler {
     logger.ai(`Ticket closed in ${data.channelId}`);
 
     // Close budget tracking for this ticket
-    const budget = this.ai.getBudget();
-    const ticketCost = budget.closeTicket(data.channelId);
+    const router = this.ai.getRouter();
+    const ticketCost = router.closeTicket(data.channelId);
     if (ticketCost) {
       try {
         await this.bridge.saveTicketCost({
