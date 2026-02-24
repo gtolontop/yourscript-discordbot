@@ -86,10 +86,10 @@ const CACHE_DISCOUNT = 0.80; // 80% discount on cached tokens
 // ========================
 
 const BASIC_WATERFALL = [
-  "meta-llama/llama-3.1-8b-instruct:free",
-  "qwen/qwen-2.5-72b-instruct:free",
-  "z-ai/glm-4.5-air:free",
+  "qwen/qwen3-coder:free",
   "arcee-ai/trinity-large-preview:free",
+  "z-ai/glm-4.5-air:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
   "google/gemini-2.5-flash-lite-preview", // 0.02$
   "meta-llama/llama-3.1-8b-instruct"      // 0.04$
 ];
@@ -97,7 +97,8 @@ const BASIC_WATERFALL = [
 const COMPLEX_WATERFALL = [
   "meta-llama/llama-3.3-70b-instruct:free",
   "openai/gpt-oss-120b:free",
-  "qwen/qwen-2.5-72b-instruct:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "qwen/qwen3-coder:free",
   "arcee-ai/trinity-large-preview:free",
   "z-ai/glm-4.5-air:free",
   "google/gemini-2.5-flash-lite-preview", // 0.02$
