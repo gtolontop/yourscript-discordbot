@@ -136,6 +136,15 @@ export interface SaveDaySummaryAction {
   byTaskType: string; // JSON stringified
 }
 
+export interface SendQuestionnaireAction {
+  channelId: string;
+  guildId: string;
+  title?: string;
+  description?: string;
+  buttonLabel?: string;
+  questions: string[];
+}
+
 // ===== DM Actions =====
 
 export interface CreateDMThreadAction {
@@ -313,6 +322,7 @@ export interface AIToServerEvents {
   "action:trackAICost": (data: TrackAICostAction, callback: (result: { success: boolean; error?: string }) => void) => void;
   "action:saveTicketCost": (data: SaveTicketCostAction, callback: (result: { success: boolean; error?: string }) => void) => void;
   "action:saveDaySummary": (data: SaveDaySummaryAction, callback: (result: { success: boolean; error?: string }) => void) => void;
+  "action:sendQuestionnaire": (data: SendQuestionnaireAction, callback: (result: { success: boolean; error?: string }) => void) => void;
   "action:createDMThread": (data: CreateDMThreadAction, callback: (result: { success: boolean; threadId?: string; error?: string }) => void) => void;
   "action:sendToThread": (data: SendToThreadAction, callback: (result: { success: boolean; error?: string }) => void) => void;
   "action:createReminder": (data: CreateReminderAction, callback: (result: { success: boolean; reminderId?: number; error?: string }) => void) => void;

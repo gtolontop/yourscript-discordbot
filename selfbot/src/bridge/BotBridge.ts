@@ -198,6 +198,10 @@ export class BotBridge {
     return this.callAction("action:saveDaySummary", data);
   }
 
+  async sendQuestionnaire(data: any): Promise<{ success: boolean; error?: string }> {
+    return this.callAction("action:sendQuestionnaire", data);
+  }
+
   async createDMThread(data: CreateDMThreadAction): Promise<{ success: boolean; threadId?: string; error?: string }> {
     return this.callAction("action:createDMThread", data);
   }
