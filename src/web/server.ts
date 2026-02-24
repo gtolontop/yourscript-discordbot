@@ -634,7 +634,7 @@ export function startWebServer(client: Bot, port: number = 3000): { app: ReturnT
         }
         
         try {
-          const { aiQuestionnaireCache } = await import("../../utils/questionnaireCache.js");
+          const { aiQuestionnaireCache } = await import("../utils/questionnaireCache.js");
           aiQuestionnaireCache.set(data.channelId, data.questions.slice(0, 5));
         } catch (e) { logger.error("Failed to set cache:", e); }
 
