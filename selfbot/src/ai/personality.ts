@@ -162,7 +162,12 @@ export function getTicketSystemPrompt(
 
   const langNames: Record<SupportedLanguage, string> = { en: "English", fr: "French", es: "Spanish", de: "German", pt: "Portuguese" };
   prompt += `\n\nCRITICAL: You MUST answer with ONLY a JSON object. No markdown, no extra text. Language for 'response': ${langNames[lang]}`;
-  prompt += `\n{"classification":"service_inquiry|bug_report|role_request|partnership|general_support","sentiment":"positive|neutral|negative|frustrated","priority":1-10,"response":"<your actual chat message to the user>","needs_escalation":false,"escalation_reason":null,"rename_to":null,"is_resolved":false,"todos":[]}`;
+  prompt += `\nJSON Fields Explanation:`;
+  prompt += `\n- "response": Your direct chat message to the user.`;
+  prompt += `\n- "needs_escalation": MUST be true if the user asks for a human, manager, refund, or if it's a partnership/collab request.`;
+  prompt += `\n- "escalation_reason": Brief English reason if needs_escalation is true (e.g. "Partnership request", "Requested human").`;
+  prompt += `\n- "is_resolved": True ONLY if the issue is 100% fixed and the ticket can be closed now.`;
+  prompt += `\nOutput Format: {"classification":"service_inquiry|bug_report|role_request|partnership|general_support","sentiment":"positive|neutral|negative|frustrated","priority":1-10,"response":"<msg>","needs_escalation":false,"escalation_reason":null,"rename_to":null,"is_resolved":false,"todos":[]}`;
 
   return prompt;
 }

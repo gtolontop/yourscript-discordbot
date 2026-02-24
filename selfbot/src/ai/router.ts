@@ -21,38 +21,38 @@ interface ModelConfig {
 
 const MODEL_TABLE: Record<TaskType, ModelConfig> = {
   classification: {
-    model: "meta-llama/llama-3.1-8b-instruct",
-    fallback: "google/gemini-2.5-flash-lite",
+    model: "google/gemini-2.5-flash-lite",
+    fallback: "google/gemini-2.5-flash",
     rpm: 500,
     rpd: 50000,
   },
   sentiment: {
-    model: "meta-llama/llama-3.1-8b-instruct",
-    fallback: "google/gemini-2.5-flash-lite",
+    model: "google/gemini-2.5-flash-lite",
+    fallback: "google/gemini-2.5-flash",
     rpm: 500,
     rpd: 50000,
   },
   quick_response: {
-    model: "meta-llama/llama-3.1-8b-instruct",
-    fallback: "google/gemini-2.5-flash-lite",
+    model: "google/gemini-2.5-flash-lite",
+    fallback: "google/gemini-2.5-flash",
     rpm: 200,
     rpd: 10000,
   },
   conversation: {
-    model: "meta-llama/llama-3.1-8b-instruct",
-    fallback: "google/gemini-2.5-flash-lite",
+    model: "google/gemini-2.5-flash-lite",
+    fallback: "google/gemini-2.5-flash",
     rpm: 200,
     rpd: 10000,
   },
   complex_analysis: {
-    model: "meta-llama/llama-3.1-8b-instruct",
-    fallback: "google/gemini-2.5-flash-lite",
+    model: "google/gemini-2.5-flash-lite",
+    fallback: "google/gemini-2.5-flash",
     rpm: 200,
     rpd: 10000,
   },
   summary: {
-    model: "meta-llama/llama-3.1-8b-instruct",
-    fallback: "google/gemini-2.5-flash-lite",
+    model: "google/gemini-2.5-flash-lite",
+    fallback: "google/gemini-2.5-flash",
     rpm: 500,
     rpd: 50000,
   },
@@ -62,20 +62,20 @@ const MODEL_TABLE: Record<TaskType, ModelConfig> = {
     rpd: 50000,
   },
   action_detection: {
-    model: "meta-llama/llama-3.1-8b-instruct",
-    fallback: "google/gemini-2.5-flash-lite",
+    model: "google/gemini-2.5-flash-lite",
+    fallback: "google/gemini-2.5-flash",
     rpm: 500,
     rpd: 50000,
   },
   dm_conversation: {
-    model: "meta-llama/llama-3.1-8b-instruct",
-    fallback: "google/gemini-2.5-flash-lite",
+    model: "google/gemini-2.5-flash-lite",
+    fallback: "google/gemini-2.5-flash",
     rpm: 200,
     rpd: 10000,
   },
   memory_extraction: {
-    model: "meta-llama/llama-3.1-8b-instruct",
-    fallback: "google/gemini-2.5-flash-lite",
+    model: "google/gemini-2.5-flash-lite",
+    fallback: "google/gemini-2.5-flash",
     rpm: 500,
     rpd: 50000,
   },
@@ -113,7 +113,7 @@ export class ModelRouter {
 
   getModel(taskType: TaskType): string {
     const config = MODEL_TABLE[taskType];
-    if (!config) return "google/gemini-2.5-flash-lite";
+    if (!config) return "google/gemini-2.5-flash-lite-preview";
 
     // Check if primary model is available (not hard-banned and within soft limits)
     if (!this.isHardBanned(config.model) && this.isAvailable(config.model, config.rpm, config.rpd)) {
