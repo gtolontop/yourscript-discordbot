@@ -75,8 +75,8 @@ const budget = new BudgetMonitor({
   },
 });
 
-const ai = new OpenRouterProvider(OPENROUTER_API_KEY, budget);
 const router = new ModelRouter();
+const ai = new OpenRouterProvider(OPENROUTER_API_KEY, budget, router);
 const actionParser = new ActionParser(ai);
 
 // Initialize handlers

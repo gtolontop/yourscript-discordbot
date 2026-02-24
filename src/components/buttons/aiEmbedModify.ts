@@ -1,17 +1,17 @@
 import { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from "discord.js";
-import type { Button } from "../../types/index.js";
+import type { ButtonComponent } from "../../types/index.js";
 import { aiEmbedSessions } from "../../commands/admin/ai.js";
 import { errorMessage } from "../../utils/index.js";
 
 export default {
-  customId: /^ai_embed_modify_(.*)$/,
+  customId: /^ai_embed_modify_(?!modal)/,
   async execute(interaction) {
     const sessionId = interaction.customId.replace("ai_embed_modify_", "");
     const session = aiEmbedSessions.get(sessionId);
 
     if (!session) {
       return interaction.reply({
-        ...errorMessage({ description: "Cette session de génération est expirée. Refaites la commande `/ai embed`." }),
+        ...errorMessage({ description: "Cette session est expirée. Refaites `/ai embed`." }),
         ephemeral: true
       });
     }
@@ -22,8 +22,8 @@ export default {
 
     const promptInput = new TextInputBuilder()
       .setCustomId("prompt")
-      .setLabel("Que souhaitez-vous ajouter/modifier ?")
-      .setPlaceholder("ex: Ajoute une bordure rouge, modifie le footer...")
+      .setLabel("Que souhaitez-vous modifier ?")
+      .setPlaceholder("ex: Change la couleur en rouge, ajoute un footer...")
       .setStyle(TextInputStyle.Paragraph)
       .setRequired(true);
 
@@ -32,4 +32,4 @@ export default {
 
     await interaction.showModal(modal);
   },
-} satisfies Button;
+} satisfies ButtonComponent;

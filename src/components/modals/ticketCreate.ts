@@ -8,7 +8,7 @@ export default {
   async execute(interaction, client) {
     const ticketService = new TicketService(client);
 
-    // Extract category from customId if present (ticket_create_modal_Support)
+    // Extract category from customId: ticket_create_modal_Support → "Support"
     const parts = interaction.customId.split("_");
     const categoryName = parts.length > 3 ? parts.slice(3).join("_") : undefined;
 
@@ -17,18 +17,18 @@ export default {
     const extraData: Record<string, string> = {};
     let subject: string | undefined;
 
-    // We collect all fields dynamically since modals can now be customized
+    // Collect all fields dynamically — modals are per-category now
     try {
       interaction.fields.fields.forEach((fieldObj) => {
         const field = fieldObj as any;
         if (field.customId === "subject") {
           subject = field.value?.trim() || undefined;
         } else if (field.value?.trim()) {
-           extraData[field.customId] = field.value.trim();
+          extraData[field.customId] = field.value.trim();
         }
       });
     } catch (e) {
-      logger.error(`[MODAL] Error parsing fields manually:`, e);
+      logger.error(`[MODAL] Error parsing fields:`, e);
     }
 
     // Check if user already has an open ticket

@@ -1,12 +1,10 @@
 import {
   ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
   EmbedBuilder,
   StringSelectMenuBuilder,
 } from "discord.js";
 import type { ModalComponent } from "../../types/index.js";
-import { Colors } from "../../utils/index.js";
+import { Colors, errorMessage } from "../../utils/index.js";
 
 export default {
   customId: "ticket_panel_create",
@@ -15,55 +13,52 @@ export default {
     const title = interaction.fields.getTextInputValue("panel_title");
     const description = interaction.fields.getTextInputValue("panel_description");
 
-    const embed = new EmbedBuilder()
-      .setTitle(`🎫 ${title}`)
-      .setDescription(description)
-      .setColor(Colors.Primary);
-
-    // Check if categories exist
+    // Always fetch categories — panel MUST use dropdown
     const categories = await client.db.ticketCategory.findMany({
       where: { guildId: interaction.guildId! },
       orderBy: { position: "asc" },
     });
 
-    let components: ActionRowBuilder<any>[] = [];
-
-    if (categories.length > 0) {
-      const selectMenu = new StringSelectMenuBuilder()
-        .setCustomId("ticket_category_select")
-        .setPlaceholder("Choose a ticket category...")
-        .addOptions(
-          categories.map((cat) => ({
-            label: cat.name,
-            value: cat.name,
-            ...(cat.description && { description: cat.description }),
-            ...(cat.emoji && { emoji: cat.emoji }),
-          }))
-        );
-       components.push(new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu));
-    } else {
-        const buttonText = interaction.fields.getTextInputValue("panel_button_text");
-        const buttonEmoji = interaction.fields.getTextInputValue("panel_button_emoji") || "🎫";
-
-        components.push(new ActionRowBuilder<ButtonBuilder>().addComponents(
-          new ButtonBuilder()
-            .setCustomId("ticket_create")
-            .setLabel(buttonText)
-            .setStyle(ButtonStyle.Primary)
-            .setEmoji(buttonEmoji)
-        ));
+    if (categories.length === 0) {
+      return interaction.reply({
+        ...errorMessage({
+          description:
+            "You need at least one ticket category to create a panel.\nUse `/ticketcategory add` to create one first.",
+        }),
+        ephemeral: true,
+      });
     }
 
+    const embed = new EmbedBuilder()
+      .setTitle(`🎫 ${title}`)
+      .setDescription(description)
+      .setColor(Colors.Primary)
+      .setFooter({ text: "Select a category below to open a ticket" });
+
+    const selectMenu = new StringSelectMenuBuilder()
+      .setCustomId("ticket_category_select")
+      .setPlaceholder("📂 Choose a ticket type...")
+      .addOptions(
+        categories.map((cat) => ({
+          label: cat.name,
+          value: cat.name,
+          ...(cat.description && { description: cat.description }),
+          ...(cat.emoji && { emoji: cat.emoji }),
+        }))
+      );
+
+    const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
+
     // Send panel to channel
-    if (interaction.channel && 'send' in interaction.channel) {
+    if (interaction.channel && "send" in interaction.channel) {
       await interaction.channel.send({
         embeds: [embed],
-        components,
+        components: [row],
       });
     }
 
     await interaction.reply({
-      content: "✅ Ticket panel sent!",
+      content: "✅ Ticket panel sent with dropdown!",
       ephemeral: true,
     });
   },
