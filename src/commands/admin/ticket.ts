@@ -3,13 +3,12 @@ import {
   PermissionFlagsBits,
   ChannelType,
   ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
   TextChannel,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
 } from "discord.js";
+
 import type { Command } from "../../types/index.js";
 import { successMessage, errorMessage, createMessage, warningMessage } from "../../utils/index.js";
 import { TicketService } from "../../services/TicketService.js";
