@@ -62,10 +62,10 @@ export interface ModelRouterOptions {
 
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   // Free OpenRouter Models
-  "meta-llama/llama-3.1-8b-instruct:free": { input: 0.0, output: 0.0 },
   "meta-llama/llama-3.3-70b-instruct:free": { input: 0.0, output: 0.0 },
   "openai/gpt-oss-120b:free": { input: 0.0, output: 0.0 },
-  "qwen/qwen-2.5-72b-instruct:free": { input: 0.0, output: 0.0 },
+  "qwen/qwen3-next-80b-a3b-instruct:free": { input: 0.0, output: 0.0 },
+  "qwen/qwen3-coder:free": { input: 0.0, output: 0.0 },
   "z-ai/glm-4.5-air:free": { input: 0.0, output: 0.0 },
   "arcee-ai/trinity-large-preview:free": { input: 0.0, output: 0.0 },
 
