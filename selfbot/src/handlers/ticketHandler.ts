@@ -854,6 +854,22 @@ export class TicketHandler {
       }
     }
 
+    if (parsed.questionnaire && Array.isArray(parsed.questionnaire.questions) && parsed.questionnaire.questions.length > 0) {
+      logger.ai(`Sending interactive questionnaire in ${channelId}`);
+      try {
+        await this.bridge.sendQuestionnaire({
+          channelId,
+          guildId: data.guildId,
+          title: parsed.questionnaire.title,
+          description: parsed.questionnaire.description,
+          buttonLabel: parsed.questionnaire.buttonLabel,
+          questions: parsed.questionnaire.questions,
+        });
+      } catch (err) {
+        logger.error(`Failed to send questionnaire in ${channelId}:`, err);
+      }
+    }
+
     if (parsed.is_resolved) {
       logger.ai(`AI marked ticket resolved in ${channelId}`);
       try {

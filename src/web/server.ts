@@ -626,6 +626,39 @@ export function startWebServer(client: Bot, port: number = 3000): { app: ReturnT
       }
     });
 
+    socket.on("action:sendQuestionnaire" as any, async (data: any, callback: any) => {
+      try {
+        const channel = client.channels.cache.get(data.channelId);
+        if (!channel?.isTextBased() || channel.isDMBased()) {
+          return callback({ success: false, error: "Channel not found" });
+        }
+        
+        try {
+          const { aiQuestionnaireCache } = await import("../../utils/questionnaireCache.js");
+          aiQuestionnaireCache.set(data.channelId, data.questions.slice(0, 5));
+        } catch (e) { logger.error("Failed to set cache:", e); }
+
+        const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = await import("discord.js");
+        const embed = new EmbedBuilder()
+          .setTitle(data.title || "📝 Questionnaire")
+          .setDescription(data.description || "Please provide us with some additional information by answering the questions below.")
+          .setColor(0x5865f2);
+
+        const row = new ActionRowBuilder<any>().addComponents(
+          new ButtonBuilder()
+            .setCustomId("btn_ai_questionnaire")
+            .setLabel(data.buttonLabel || "Answer Questions")
+            .setEmoji("📋")
+            .setStyle(ButtonStyle.Primary)
+        );
+
+        await (channel as any).send({ embeds: [embed], components: [row] });
+        callback({ success: true });
+      } catch (err: any) {
+        callback({ success: false, error: err.message });
+      }
+    });
+
     // ===== Cost Tracking Actions =====
 
     socket.on("action:saveTicketCost" as any, async (data: any, callback: any) => {
