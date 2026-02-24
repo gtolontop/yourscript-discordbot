@@ -73,6 +73,8 @@ export class TicketHandler {
   private ticketSentiments = new Map<string, Array<{ sentiment: string; score: number; timestamp: number }>>();
   // Knowledge base cache per guild (refreshed every 5 min)
   private knowledgeCache = new Map<string, { entries: KnowledgeItem[]; fetchedAt: number }>();
+  // Track active AI generations to prevent overlapping responses and double replies
+  private activeGenerations = new Map<string, number>();
 
   constructor(
     private selfbot: SelfbotClient,
@@ -429,6 +431,10 @@ export class TicketHandler {
       const taskType = this.determineTaskType(state.ticketType, state.exchangeCount);
       const model = this.router.getModel(taskType);
 
+      // Track generation to drop this response if a newer one starts
+      const currentGen = (this.activeGenerations.get(channelId) || 0) + 1;
+      this.activeGenerations.set(channelId, currentGen);
+
       const fullPrompt = this.context.getFullSystemPrompt(channelId);
       let messagesContext = this.context.getMessages(channelId);
       if (messagesContext.length > 4) {
@@ -449,6 +455,11 @@ export class TicketHandler {
           responseFormat: "json"
         }
       );
+
+      if (this.activeGenerations.get(channelId) !== currentGen) {
+        logger.ai(`Generation superseded in ${channelId}, dropping batched response`);
+        return;
+      }
 
       await this.processOmniResponse(channelId, data, response.text, lang);
     } catch (err) {
@@ -499,6 +510,7 @@ export class TicketHandler {
     this.context.remove(data.channelId);
     this.ticketLanguages.delete(data.channelId);
     this.ticketSentiments.delete(data.channelId);
+    this.activeGenerations.delete(data.channelId);
     ticketRenamed.delete(data.channelId);
   }
 
@@ -604,6 +616,8 @@ export class TicketHandler {
 
     try {
       const model = this.router.getModel("quick_response");
+      const currentGen = (this.activeGenerations.get(channelId) || 0) + 1;
+      this.activeGenerations.set(channelId, currentGen);
 
       const response = await this.ai.generateText(
         this.context.getFullSystemPrompt(channelId),
@@ -618,6 +632,11 @@ export class TicketHandler {
           responseFormat: "json"
         }
       );
+
+      if (this.activeGenerations.get(channelId) !== currentGen) {
+        logger.ai(`Generation superseded in ${channelId}, dropping initial response`);
+        return;
+      }
 
       await this.processOmniResponse(channelId, data, response.text, lang);
       logger.ai(`Responded in ${channelId}`);
