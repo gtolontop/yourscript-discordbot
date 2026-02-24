@@ -10,83 +10,25 @@ export default {
 
     // Extract category from customId if present (ticket_create_modal_Support)
     const parts = interaction.customId.split("_");
-    const category = parts.length > 3 ? parts.slice(3).join("_") : undefined;
+    const categoryName = parts.length > 3 ? parts.slice(3).join("_") : undefined;
 
     await interaction.deferReply({ ephemeral: true });
 
-    // Extract all fields with proper null checking
+    const extraData: Record<string, string> = {};
     let subject: string | undefined;
-    let username: string | undefined;
-    let serverIp: string | undefined;
-    let description: string | undefined;
 
-    // Try using the fields collection first
+    // We collect all fields dynamically since modals can now be customized
     try {
-      const subjectVal = interaction.fields.getTextInputValue("subject");
-      subject = subjectVal?.trim() || undefined;
-    } catch (e) {
-      // Field doesn't exist via getTextInputValue
-    }
-
-    try {
-      const usernameVal = interaction.fields.getTextInputValue("username");
-      username = usernameVal?.trim() || undefined;
-    } catch (e) {
-      // Field doesn't exist via getTextInputValue
-    }
-
-    try {
-      const ipVal = interaction.fields.getTextInputValue("server_ip");
-      serverIp = ipVal?.trim() || undefined;
-    } catch (e) {
-      // Field doesn't exist via getTextInputValue
-    }
-
-    try {
-      const descVal = interaction.fields.getTextInputValue("description");
-      description = descVal?.trim() || undefined;
-    } catch (e) {
-      // Field doesn't exist via getTextInputValue
-    }
-
-    // Debug: log the interaction structure
-    logger.info(`[MODAL] Interaction type: ${interaction.constructor.name}`);
-    logger.info(`[MODAL] Fields collection size: ${interaction.fields.fields?.size ?? 0}`);
-
-    // Fallback: manually parse raw interaction data if fields are empty
-    if (!subject && !username && !serverIp && !description) {
-      const rawData = (interaction as any).data;
-      logger.info(`[MODAL] Raw data keys: ${rawData ? Object.keys(rawData).join(", ") : "no data"}`);
-      logger.info(`[MODAL] Raw components: ${JSON.stringify(rawData?.components)}`);
-
-      if (rawData?.components) {
-        const rawComponents = rawData.components as any[];
-        const fieldMap = new Map<string, string>();
-
-        for (const row of rawComponents) {
-          for (const component of row.components || []) {
-            if (component.custom_id && component.value) {
-              fieldMap.set(component.custom_id, component.value);
-            }
-          }
+      interaction.fields.fields.forEach((field) => {
+        if (field.customId === "subject") {
+          subject = field.value.trim() || undefined;
+        } else if (field.value.trim()) {
+           extraData[field.customId] = field.value.trim();
         }
-
-        subject = fieldMap.get("subject")?.trim() || undefined;
-        username = fieldMap.get("username")?.trim() || undefined;
-        serverIp = fieldMap.get("server_ip")?.trim() || undefined;
-        description = fieldMap.get("description")?.trim() || undefined;
-      }
+      });
+    } catch (e) {
+      logger.error(`[MODAL] Error parsing fields manually:`, e);
     }
-
-    // Debug logging for modal submission
-    const fieldsDebug = {
-      subject: subject ?? "(empty)",
-      username: username ?? "(empty)",
-      serverIp: serverIp ?? "(empty)",
-      description: description ?? "(empty)",
-      rawComponents: interaction.components?.length ?? 0
-    };
-    logger.info(`[MODAL] Ticket submission result: ${JSON.stringify(fieldsDebug)}`);
 
     // Check if user already has an open ticket
     const existingTicket = await client.db.ticket.findFirst({
@@ -109,12 +51,8 @@ export default {
       interaction.guild!,
       interaction.user,
       subject,
-      category,
-      {
-        ...(username ? { username } : {}),
-        ...(serverIp ? { serverIp } : {}),
-        ...(description ? { description } : {}),
-      }
+      categoryName,
+      extraData
     );
 
     if (!channel) {
