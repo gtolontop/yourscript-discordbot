@@ -11,7 +11,7 @@ export default {
   customId: "ticket_category_select",
 
   async execute(interaction, client) {
-    const categoryName = interaction.values[0];
+    const categoryName = interaction.values[0] as string;
     const guildId = interaction.guildId!;
 
     // Fetch the specific category config

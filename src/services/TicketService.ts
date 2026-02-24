@@ -34,11 +34,22 @@ export class TicketService {
     guild: Guild, 
     user: User, 
     subject?: string, 
-    category?: string, 
-    extraData?: { username?: string; serverIp?: string; description?: string }
+    categoryName?: string, 
+    extraData?: Record<string, string>
   ): Promise<TextChannel | null> {
     const config = await this.getConfig(guild.id);
     if (!config?.ticketCategoryId) return null;
+
+    let parentId = config.ticketCategoryId;
+
+    if (categoryName) {
+      const category = await this.client.db.ticketCategory.findUnique({
+        where: { guildId_name: { guildId: guild.id, name: categoryName } },
+      });
+      if (category?.categoryChannelId) {
+        parentId = category.categoryChannelId;
+      }
+    }
 
     // Increment ticket counter
     const updated = await this.client.db.guild.update({
@@ -77,15 +88,15 @@ export class TicketService {
     }
 
     // Create channel with category prefix if exists
-    const channelName = category
-      ? `${category.toLowerCase()}-${ticketNumber.toString().padStart(4, "0")}`
+    const channelName = categoryName
+      ? `${categoryName.toLowerCase().substring(0, 10)}-${ticketNumber.toString().padStart(4, "0")}`
       : `ticket-${ticketNumber.toString().padStart(4, "0")}`;
 
     const channel = await guild.channels.create({
       name: channelName,
       type: ChannelType.GuildText,
-      parent: config.ticketCategoryId,
-      topic: `Ticket by ${user.tag} | ${category ?? "General"} | ${subject ?? "No subject"}`,
+      parent: parentId,
+      topic: `Ticket by ${user.tag} | ${categoryName ?? "General"} | ${subject ?? "No subject"}`,
       permissionOverwrites,
     });
 
@@ -96,25 +107,38 @@ export class TicketService {
         channelId: channel.id,
         userId: user.id,
         guildId: guild.id,
-        category: category ?? null,
+        category: categoryName ?? null,
         subject: subject ?? null,
       },
     });
 
     // Build welcome embed
-    const welcomeEmbed = new EmbedBuilder()
-      .setTitle(`🎫 Ticket #${ticketNumber.toString().padStart(4, "0")}`)
-      .setDescription([
+    const embedLines = [
         `Welcome ${user.toString()}!`,
         "",
-        category ? `**Category:** ${category}` : null,
+        categoryName ? `**Category:** ${categoryName}` : null,
         subject ? `**Subject:** ${subject}` : null,
-        extraData?.username ? `**Username:** \`${extraData.username}\`` : null,
-        extraData?.serverIp ? `**Server IP:** \`${extraData.serverIp}\`` : null,
         `**Priority:** 🟡 Normal`,
         "",
-        "A staff member will respond soon. In the meantime, the AI might ask you a few questions or help you.",
-      ].filter(Boolean).join("\n"))
+    ];
+
+    // Add all extra data fields (except "description" which gets a separate message)
+    if (extraData) {
+      for (const [key, value] of Object.entries(extraData)) {
+         if (key !== "description" && value) {
+            // Capitalize first letter of key or convert slug to title
+            const label = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, " ");
+            embedLines.push(`**${label}:** \`${value}\``);
+         }
+      }
+      if (Object.keys(extraData).length > 0) embedLines.push("");
+    }
+
+    embedLines.push("A staff member will respond soon. In the meantime, the AI might ask you a few questions or help you.");
+
+    const welcomeEmbed = new EmbedBuilder()
+      .setTitle(`🎫 Ticket #${ticketNumber.toString().padStart(4, "0")}`)
+      .setDescription(embedLines.filter(Boolean).join("\n"))
       .setColor(Colors.Primary)
       .setFooter({ text: "Staff: Use the buttons below or /ticket" })
       .setTimestamp();
@@ -145,10 +169,10 @@ export class TicketService {
     });
 
     // Send the user's description as a separate message if provided
-    if (extraData?.description) {
+    if (extraData?.['description']) {
       const descEmbed = new EmbedBuilder()
         .setAuthor({ name: user.tag, iconURL: user.displayAvatarURL() })
-        .setDescription(extraData.description)
+        .setDescription(extraData['description'])
         .setColor(0x2b2d31)
         .setTimestamp();
       await channel.send({ embeds: [descEmbed] });
@@ -163,7 +187,7 @@ export class TicketService {
           channelId: channel.id,
           guildId: guild.id,
           userId: user.id,
-          category: category ?? null,
+          category: categoryName ?? null,
           subject: subject ?? null,
           number: ticketNumber,
         });
