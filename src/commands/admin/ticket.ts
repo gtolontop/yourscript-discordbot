@@ -57,7 +57,7 @@ export default {
         )
     )
     .addSubcommand((sub) =>
-      sub.setName("panel").setDescription("Create a ticket panel (via modal)")
+      sub.setName("panel").setDescription("Create a ticket panel with dropdown categories")
     )
     .addSubcommand((sub) =>
       sub
