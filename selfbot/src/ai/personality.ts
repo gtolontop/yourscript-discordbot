@@ -167,7 +167,8 @@ export function getTicketSystemPrompt(
   prompt += `\n- "needs_escalation": MUST be true if the user asks for a human, manager, refund, or if it's a partnership/collab request.`;
   prompt += `\n- "escalation_reason": Brief English reason if needs_escalation is true (e.g. "Partnership request", "Requested human").`;
   prompt += `\n- "is_resolved": True ONLY if the issue is 100% fixed and the ticket can be closed now.`;
-  prompt += `\nOutput Format: {"classification":"service_inquiry|bug_report|role_request|partnership|general_support","sentiment":"positive|neutral|negative|frustrated","priority":1-10,"response":"<msg>","needs_escalation":false,"escalation_reason":null,"rename_to":null,"is_resolved":false,"todos":[]}`;
+  prompt += `\n- "questionnaire": Optional. Use this to send an interactive form with up to 5 questions. Format: {"title": "...", "description": "...", "buttonLabel": "...", "questions": ["q1", "q2"]}`;
+  prompt += `\nOutput Format: {"classification":"service_inquiry|bug_report|role_request|partnership|general_support","sentiment":"positive|neutral|negative|frustrated","priority":1-10,"response":"<msg>","needs_escalation":false,"escalation_reason":null,"rename_to":null,"is_resolved":false,"todos":[],"questionnaire":null}`;
 
   return prompt;
 }
