@@ -1,12 +1,7 @@
 import type { AIProvider, AIMessage, AIResponse, EmbeddingResponse } from "./provider.js";
 import { BudgetMonitor } from "./budget.js";
+import { ModelRouter, type TaskType } from "./router.js";
 import { logger } from "../utils/logger.js";
-
-const MODELS = {
-  READER: "meta-llama/llama-3.1-8b-instruct:free",
-  EXECUTOR: "meta-llama/llama-3.3-70b-instruct:free",
-  EMBEDDING: "openai/text-embedding-3-small",
-} as const;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -28,21 +23,14 @@ export class OpenRouterProvider implements AIProvider {
   private siteUrl: string;
   private siteName: string;
   private budget: BudgetMonitor;
+  private router: ModelRouter;
 
-  constructor(apiKey: string, budget: BudgetMonitor) {
+  constructor(apiKey: string, budget: BudgetMonitor, router: ModelRouter) {
     this.apiKey = apiKey;
     this.budget = budget;
+    this.router = router;
     this.siteUrl = process.env["OPENROUTER_SITE_URL"] ?? "https://your-script.com";
     this.siteName = process.env["OPENROUTER_SITE_NAME"] ?? "Your Script";
-  }
-
-  /**
-   * Resolve model name: use explicit role, or fall back to the model string from router
-   */
-  private resolveModel(options: OpenRouterOptions = {}): string {
-    if (options.role === "reader") return MODELS.READER;
-    if (options.role === "executor") return MODELS.EXECUTOR;
-    return options.model ?? MODELS.EXECUTOR;
   }
 
   /**
@@ -102,12 +90,15 @@ export class OpenRouterProvider implements AIProvider {
         return await response.json();
       }
 
-      if ((response.status === 429 || response.status >= 500) && attempt < maxRetries) {
-        const retryAfter = parseInt(response.headers.get("retry-after") ?? "5");
-        const waitMs = Math.min(retryAfter * 1000, 30_000) * (attempt + 1);
-        logger.warn(`OpenRouter ${response.status} on attempt ${attempt + 1}, retrying in ${waitMs}ms`);
-        await sleep(waitMs);
-        continue;
+      if (response.status === 429 || response.status >= 500) {
+        if (attempt < maxRetries && response.status >= 500) {
+          const waitMs = 1000 * (attempt + 1);
+          await sleep(waitMs);
+          continue;
+        } else {
+          const errorText = await response.text();
+          throw new Error(`OpenRouter API error ${response.status}: ${errorText}`);
+        }
       }
 
       const errorText = await response.text();
@@ -301,7 +292,7 @@ export class OpenRouterProvider implements AIProvider {
     const result = await this.generateText(
       "You are a summarizer.",
       [{ role: "user", content: prompt }],
-      { model: MODELS.READER, temperature: 0.3, maxTokens: 512, taskType: "summary" }
+      { temperature: 0.3, maxTokens: 512, taskType: "summary" }
     );
 
     return result.text;
@@ -346,10 +337,9 @@ export class OpenRouterProvider implements AIProvider {
       "You are a ticket summary generator. Respond only with valid JSON.",
       [{ role: "user", content: prompt }],
       { 
-        model: MODELS.READER, 
         temperature: 0.2, 
         maxTokens: 512, 
-        taskType: "ticket_summary",
+        taskType: "summary",
         ticketId: options.ticketId,
         guildId: options.guildId,
       }

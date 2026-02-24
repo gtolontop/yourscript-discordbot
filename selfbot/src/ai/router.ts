@@ -120,7 +120,7 @@ export class ModelRouter {
     logger.warn(`Router: ${model} hard-banned for ${durationSeconds}s`);
   }
 
-  private isHardBanned(model: string): boolean {
+  isHardBanned(model: string): boolean {
     const unbanAt = this.hardBanned.get(model);
     if (!unbanAt) return false;
     if (Date.now() >= unbanAt) {
@@ -131,29 +131,34 @@ export class ModelRouter {
   }
 
   getModel(taskType: TaskType): string {
-    const config = MODEL_TABLE[taskType];
-    if (!config) return "google/gemini-2.5-flash-lite-preview";
+    return this.getWaterfall(taskType)[0] ?? "meta-llama/llama-3.1-8b-instruct:free";
+  }
 
-    // Check if primary model is available (not hard-banned and within soft limits)
+  getWaterfall(taskType: TaskType): string[] {
+    const config = MODEL_TABLE[taskType];
+    if (!config) return ["google/gemini-2.5-flash-lite-preview"];
+
+    const waterfall: string[] = [];
+    
+    // Check if primary model is available
     if (!this.isHardBanned(config.model) && this.isAvailable(config.model, config.rpm, config.rpd)) {
-      this.recordUsage(config.model);
-      return config.model;
+      waterfall.push(config.model);
     }
 
-    // Generic fallback: Iterate over defined fallbacks
+    // Add fallbacks
     const fallbacks = config.fallbacks || ["deepseek/deepseek-v3.2"];
-
     for (const fallback of fallbacks) {
       if (!this.isHardBanned(fallback)) {
-        logger.ai(`Rate limited on ${config.model}, falling back to ${fallback}`);
-        this.recordUsage(fallback);
-        return fallback;
+        waterfall.push(fallback);
       }
     }
 
-    // Last resort: return primary anyway, OpenRouter will manage
-    logger.warn(`All models rate limited for ${taskType}, using ${config.model} anyway`);
-    return config.model;
+    // Last resort: return original config if everything is banned (API will throw, but we must return something)
+    if (waterfall.length === 0) {
+      return [config.model, ...fallbacks];
+    }
+
+    return waterfall;
   }
 
   getTemperature(taskType: TaskType): number {
@@ -230,7 +235,7 @@ export class ModelRouter {
     return state.minuteCount < rpm && state.dayCount < rpd;
   }
 
-  private recordUsage(model: string): void {
+  recordUsage(model: string): void {
     const state = this.getState(model);
     state.minuteCount++;
     state.dayCount++;
