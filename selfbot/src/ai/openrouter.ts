@@ -189,7 +189,7 @@ export class OpenRouterProvider implements AIProvider {
   }
   
   async generateEmbedding(text: string): Promise<EmbeddingResponse> {
-    if (this.budget.isOverBudget()) {
+    if (this.router.isOverBudget()) {
       throw new Error("AI budget exceeded - requests blocked");
     }
 
@@ -209,7 +209,7 @@ export class OpenRouterProvider implements AIProvider {
     const latencyMs = Date.now() - startMs;
     const tokensIn = data.usage?.prompt_tokens ?? data.usage?.total_tokens ?? 0;
 
-    this.budget.trackRequest({
+    this.router.trackRequest({
       model: "openai/text-embedding-3-small",
       tokensIn,
       tokensOut: 0,
