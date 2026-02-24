@@ -2,13 +2,21 @@ import { logger } from "../utils/logger.js";
 
 // Price per 1M tokens (USD)
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
-  "x-ai/grok-4.1-fast": { input: 0.20, output: 0.50 },
-  "deepseek/deepseek-v3.2": { input: 0.26, output: 0.38 },
-  "meta-llama/llama-3.3-70b-instruct": { input: 0.13, output: 0.40 },
-  "meta-llama/llama-3.1-8b-instruct": { input: 0.02, output: 0.05 },
+  // Free OpenRouter Models
+  "meta-llama/llama-3.1-8b-instruct:free": { input: 0.0, output: 0.0 },
+  "meta-llama/llama-3.3-70b-instruct:free": { input: 0.0, output: 0.0 },
+  "openai/gpt-oss-120b:free": { input: 0.0, output: 0.0 },
+  "qwen/qwen-2.5-72b-instruct:free": { input: 0.0, output: 0.0 },
+  "z-ai/glm-4.5-air:free": { input: 0.0, output: 0.0 },
+  "arcee-ai/trinity-large-preview:free": { input: 0.0, output: 0.0 },
+
+  // Paid OpenRouter Models
   "google/gemini-2.5-flash": { input: 0.075, output: 0.30 },
+  "google/gemini-2.5-flash-lite-preview": { input: 0.02, output: 0.08 },
   "google/gemini-2.5-flash-lite": { input: 0.075, output: 0.30 },
-  "openai/gpt-4o-mini": { input: 0.15, output: 0.60 },
+  "meta-llama/llama-3.1-8b-instruct": { input: 0.02, output: 0.04 },
+  "deepseek/deepseek-v3.2": { input: 0.26, output: 0.38 },
+  "x-ai/grok-4.1-fast": { input: 0.20, output: 0.50 },
   "openai/text-embedding-3-small": { input: 0.02, output: 0.00 },
 };
 
