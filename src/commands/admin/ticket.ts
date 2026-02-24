@@ -216,7 +216,22 @@ export default {
         });
       }
 
-      // Show modal to configure the panel
+      // Check categories exist — panel requires at least one
+      const categories = await client.db.ticketCategory.findMany({
+        where: { guildId },
+      });
+
+      if (categories.length === 0) {
+        return interaction.reply({
+          ...errorMessage({
+            description:
+              "You need at least one ticket category to create a panel.\nUse `/ticketcategory add` to create categories first.",
+          }),
+          ephemeral: true,
+        });
+      }
+
+      // Show modal to configure the panel (title + description only)
       const modal = new ModalBuilder()
         .setCustomId("ticket_panel_create")
         .setTitle("Create a ticket panel");
@@ -232,34 +247,14 @@ export default {
       const descInput = new TextInputBuilder()
         .setCustomId("panel_description")
         .setLabel("Description")
-        .setPlaceholder("Click the button below to create a ticket...")
+        .setPlaceholder("Select a category below to open a ticket...")
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(true)
         .setMaxLength(1000);
 
-      const buttonTextInput = new TextInputBuilder()
-        .setCustomId("panel_button_text")
-        .setLabel("Button text")
-        .setPlaceholder("Create a ticket")
-        .setValue("Create a ticket")
-        .setStyle(TextInputStyle.Short)
-        .setRequired(true)
-        .setMaxLength(50);
-
-      const buttonEmojiInput = new TextInputBuilder()
-        .setCustomId("panel_button_emoji")
-        .setLabel("Button emoji (optional)")
-        .setPlaceholder("🎫")
-        .setValue("🎫")
-        .setStyle(TextInputStyle.Short)
-        .setRequired(false)
-        .setMaxLength(10);
-
       modal.addComponents(
         new ActionRowBuilder<TextInputBuilder>().addComponents(titleInput),
-        new ActionRowBuilder<TextInputBuilder>().addComponents(descInput),
-        new ActionRowBuilder<TextInputBuilder>().addComponents(buttonTextInput),
-        new ActionRowBuilder<TextInputBuilder>().addComponents(buttonEmojiInput)
+        new ActionRowBuilder<TextInputBuilder>().addComponents(descInput)
       );
 
       await interaction.showModal(modal);
