@@ -1,5 +1,4 @@
 import type { AIProvider, AIMessage, AIResponse, EmbeddingResponse } from "./provider.js";
-import { BudgetMonitor } from "./budget.js";
 import { ModelRouter, type TaskType } from "./router.js";
 import { logger } from "../utils/logger.js";
 
@@ -22,12 +21,10 @@ export class OpenRouterProvider implements AIProvider {
   private apiKey: string;
   private siteUrl: string;
   private siteName: string;
-  private budget: BudgetMonitor;
   private router: ModelRouter;
 
-  constructor(apiKey: string, budget: BudgetMonitor, router: ModelRouter) {
+  constructor(apiKey: string, router: ModelRouter) {
     this.apiKey = apiKey;
-    this.budget = budget;
     this.router = router;
     this.siteUrl = process.env["OPENROUTER_SITE_URL"] ?? "https://your-script.com";
     this.siteName = process.env["OPENROUTER_SITE_NAME"] ?? "Your Script";
@@ -115,7 +112,7 @@ export class OpenRouterProvider implements AIProvider {
     messages: AIMessage[],
     options: OpenRouterOptions = {}
   ): Promise<AIResponse> {
-    if (this.budget.isOverBudget()) {
+    if (this.router.isOverBudget()) {
       throw new Error("AI budget exceeded - requests blocked");
     }
 
@@ -173,7 +170,7 @@ export class OpenRouterProvider implements AIProvider {
 
     const latencyMs = Date.now() - startMs;
 
-    this.budget.trackRequest({
+    this.router.trackRequest({
       model: result.model,
       tokensIn: result.tokensIn,
       tokensOut: result.tokensOut,
@@ -402,9 +399,9 @@ export class OpenRouterProvider implements AIProvider {
   }
 
   /**
-   * Get the budget monitor instance
+   * Get the router (unified routing + budget) instance
    */
-  getBudget(): BudgetMonitor {
-    return this.budget;
+  getRouter(): ModelRouter {
+    return this.router;
   }
 }
