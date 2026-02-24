@@ -19,46 +19,59 @@ interface ModelConfig {
   fallbacks?: string[];
 }
 
-const FREE_FALLBACKS = [
+const BASIC_WATERFALL = [
+  "meta-llama/llama-3.1-8b-instruct:free",
   "qwen/qwen-2.5-72b-instruct:free",
-  "google/gemini-2.5-flash-lite-preview", // 0.02$ backup
-  "meta-llama/llama-3.1-8b-instruct"      // cheap final backup
+  "z-ai/glm-4.5-air:free",
+  "arcee-ai/trinity-large-preview:free",
+  "google/gemini-2.5-flash-lite-preview", // 0.02$
+  "meta-llama/llama-3.1-8b-instruct"      // 0.04$
+];
+
+const COMPLEX_WATERFALL = [
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "openai/gpt-oss-120b:free",
+  "qwen/qwen-2.5-72b-instruct:free",
+  "arcee-ai/trinity-large-preview:free",
+  "z-ai/glm-4.5-air:free",
+  "google/gemini-2.5-flash-lite-preview", // 0.02$
+  "google/gemini-2.5-flash",              // 0.16$ (Final reliable backup)
 ];
 
 const MODEL_TABLE: Record<TaskType, ModelConfig> = {
   classification: {
-    model: "meta-llama/llama-3.1-8b-instruct:free",
-    fallbacks: FREE_FALLBACKS,
+    model: BASIC_WATERFALL[0],
+    fallbacks: BASIC_WATERFALL.slice(1),
     rpm: 500,
     rpd: 50000,
   },
   sentiment: {
-    model: "meta-llama/llama-3.1-8b-instruct:free",
-    fallbacks: FREE_FALLBACKS,
+    model: BASIC_WATERFALL[0],
+    fallbacks: BASIC_WATERFALL.slice(1),
     rpm: 500,
     rpd: 50000,
   },
   quick_response: {
-    model: "meta-llama/llama-3.1-8b-instruct:free",
-    fallbacks: FREE_FALLBACKS,
+    model: BASIC_WATERFALL[0],
+    fallbacks: BASIC_WATERFALL.slice(1),
     rpm: 200,
     rpd: 10000,
   },
   conversation: {
-    model: "meta-llama/llama-3.3-70b-instruct:free",
-    fallbacks: [...FREE_FALLBACKS, "google/gemini-2.5-flash"],
+    model: COMPLEX_WATERFALL[0],
+    fallbacks: COMPLEX_WATERFALL.slice(1),
     rpm: 200,
     rpd: 10000,
   },
   complex_analysis: {
-    model: "meta-llama/llama-3.3-70b-instruct:free",
-    fallbacks: [...FREE_FALLBACKS, "google/gemini-2.5-flash"],
+    model: COMPLEX_WATERFALL[0],
+    fallbacks: COMPLEX_WATERFALL.slice(1),
     rpm: 200,
     rpd: 10000,
   },
   summary: {
-    model: "meta-llama/llama-3.3-70b-instruct:free",
-    fallbacks: [...FREE_FALLBACKS, "google/gemini-2.5-flash"],
+    model: COMPLEX_WATERFALL[0],
+    fallbacks: COMPLEX_WATERFALL.slice(1),
     rpm: 500,
     rpd: 50000,
   },
@@ -68,20 +81,20 @@ const MODEL_TABLE: Record<TaskType, ModelConfig> = {
     rpd: 50000,
   },
   action_detection: {
-    model: "meta-llama/llama-3.3-70b-instruct:free",
-    fallbacks: [...FREE_FALLBACKS, "google/gemini-2.5-flash"],
+    model: COMPLEX_WATERFALL[0],
+    fallbacks: COMPLEX_WATERFALL.slice(1),
     rpm: 500,
     rpd: 50000,
   },
   dm_conversation: {
-    model: "meta-llama/llama-3.3-70b-instruct:free",
-    fallbacks: [...FREE_FALLBACKS, "google/gemini-2.5-flash"],
+    model: COMPLEX_WATERFALL[0],
+    fallbacks: COMPLEX_WATERFALL.slice(1),
     rpm: 200,
     rpd: 10000,
   },
   memory_extraction: {
-    model: "meta-llama/llama-3.3-70b-instruct:free",
-    fallbacks: [...FREE_FALLBACKS, "google/gemini-2.5-flash"],
+    model: COMPLEX_WATERFALL[0],
+    fallbacks: COMPLEX_WATERFALL.slice(1),
     rpm: 500,
     rpd: 50000,
   },
