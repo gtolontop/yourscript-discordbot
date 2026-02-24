@@ -164,7 +164,7 @@ export class OpenRouterProvider implements AIProvider {
     const startMs = Date.now();
 
     const response = await this.fetchWithRetry("https://openrouter.ai/api/v1/embeddings", {
-      model: MODELS.EMBEDDING,
+      model: "openai/text-embedding-3-small",
       input: text,
     });
 
@@ -178,7 +178,7 @@ export class OpenRouterProvider implements AIProvider {
     const tokensIn = data.usage?.prompt_tokens ?? data.usage?.total_tokens ?? 0;
 
     this.budget.trackRequest({
-      model: MODELS.EMBEDDING,
+      model: "openai/text-embedding-3-small",
       tokensIn,
       tokensOut: 0,
       cachedTokens: 0,
@@ -188,7 +188,7 @@ export class OpenRouterProvider implements AIProvider {
 
     return {
       embedding: data.data[0]?.embedding ?? [],
-      model: data.model ?? MODELS.EMBEDDING,
+      model: data.model ?? "openai/text-embedding-3-small",
     };
   }
 
@@ -213,7 +213,6 @@ export class OpenRouterProvider implements AIProvider {
       "You are a text classifier. Respond only with valid JSON.",
       [{ role: "user", content: prompt }],
       { 
-        model: MODELS.READER, 
         temperature: 0.1, 
         maxTokens: 100, 
         taskType: "classification",
@@ -256,7 +255,6 @@ export class OpenRouterProvider implements AIProvider {
       "You are a sentiment analyzer. Respond only with valid JSON.",
       [{ role: "user", content: prompt }],
       { 
-        model: MODELS.READER, 
         temperature: 0.1, 
         maxTokens: 100, 
         taskType: "sentiment",

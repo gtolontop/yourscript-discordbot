@@ -7,6 +7,8 @@ import { createMessage, successMessage, errorMessage } from "../../utils/index.j
 
 const KB_CATEGORIES = ["business", "glossary", "instructions", "faq", "product"] as const;
 
+export const aiEmbedSessions = new Map<string, { embedData: any; prompt: string }>();
+
 export default {
   data: new SlashCommandBuilder()
     .setName("ai")
@@ -27,9 +29,6 @@ export default {
         .setDescription("Generate an embed using AI")
         .addStringOption((opt) =>
           opt.setName("prompt").setDescription("What should the embed look like? e.g. 'rules update red border'").setRequired(true)
-        )
-        .addChannelOption((opt) =>
-          opt.setName("channel").setDescription("Where to post the embed").setRequired(false)
         )
     )
     .addSubcommand((sub) =>
