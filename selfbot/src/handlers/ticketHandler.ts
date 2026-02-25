@@ -437,8 +437,10 @@ export class TicketHandler {
 
       const fullPrompt = this.context.getFullSystemPrompt(channelId);
       let messagesContext = this.context.getMessages(channelId);
-      if (messagesContext.length > 4) {
-         messagesContext = messagesContext.slice(-4);
+      // Give the model a good memory of the ticket by keeping up to 15 messages in context. 
+      // (Used to be only 4, which gave the AI amnesia).
+      if (messagesContext.length > 15) {
+         messagesContext = messagesContext.slice(-15);
       }
       logger.ai(`Generating response in ${channelId} | Task: ${taskType} | System Prompt Length: ${fullPrompt.length} chars | History: ${messagesContext.length} messages`);
 
