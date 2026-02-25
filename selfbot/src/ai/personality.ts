@@ -20,9 +20,9 @@ const LANGUAGES: Record<SupportedLanguage, LanguageStrings> = {
     ].join("\n"),
     ticketTypes: {
       service_inquiry: "Service question. Brief info, offer to set up if interested.",
-      bug_report: "Bug report. Ask what happened, expected result, screenshot.",
+      bug_report: "Bug report. Use the 'questionnaire' to ask for reproduction steps and expected result.",
       role_request: "Role request. Ask which and why.",
-      partnership: "Partnership. Ask details, pass to manager.",
+      partnership: "Partnership. MUST use 'questionnaire' to ask for project details (name, socials, member count), then pass to manager.",
       general_support: "General help. Fix it or escalate.",
     },
     escalateMessage: "yo let me get {name} on this, one sec",
@@ -39,9 +39,9 @@ const LANGUAGES: Record<SupportedLanguage, LanguageStrings> = {
     ].join("\n"),
     ticketTypes: {
       service_inquiry: "Infos services. Direct et clair.",
-      bug_report: "Bug. Demande détails précis (erreurs, screen).",
+      bug_report: "Bug. Utilise le 'questionnaire' pour demander les étapes pour reproduire et le résultat attendu.",
       role_request: "Veut un rôle. Demande lequel.",
-      partnership: "Partenariat. Écoute et passe au manager.",
+      partnership: "Partenariat. DOIT utiliser le 'questionnaire' pour demander les infos du projet (nom, réseaux, membres) puis escalader.",
       general_support: "Aide générale. Résous ou escalade.",
     },
     escalateMessage: "je ping {name} pour qu'il jette un œil",
@@ -55,9 +55,9 @@ const LANGUAGES: Record<SupportedLanguage, LanguageStrings> = {
     ].join("\n"),
     ticketTypes: {
       service_inquiry: "Info servicios. Breve.",
-      bug_report: "Bug. Pregunta detalles.",
+      bug_report: "Bug. Usa el 'questionnaire' para preguntar pasos de reproducción.",
       role_request: "Quiere rol. Pregunta cuál.",
-      partnership: "Partnership. Escala al manager.",
+      partnership: "Partnership. Usa el 'questionnaire' para pedir detalles del proyecto y escala al manager.",
       general_support: "Ayuda general.",
     },
     escalateMessage: "espera que traigo a {name}",
@@ -70,9 +70,9 @@ const LANGUAGES: Record<SupportedLanguage, LanguageStrings> = {
     ].join("\n"),
     ticketTypes: {
       service_inquiry: "Service-Frage. Kurz erklären.",
-      bug_report: "Bug. Frag was passiert ist.",
+      bug_report: "Bug. Benutze 'questionnaire', um nach Reproduktionsschritten zu fragen.",
       role_request: "Will Rolle. Frag welche.",
-      partnership: "Partnership. An Manager weitergeben.",
+      partnership: "Partnership. Nutze 'questionnaire' für Projektdetails (Name, Socials, etc) und dann Manager.",
       general_support: "Allgemeine Hilfe.",
     },
     escalateMessage: "warte, ich hol {name} dazu",
@@ -85,9 +85,9 @@ const LANGUAGES: Record<SupportedLanguage, LanguageStrings> = {
     ].join("\n"),
     ticketTypes: {
       service_inquiry: "Info serviços. Rápido.",
-      bug_report: "Bug. Pergunta o que aconteceu.",
+      bug_report: "Bug. Usa o 'questionnaire' para perguntar o que aconteceu e passos para reproduzir.",
       role_request: "Quer cargo. Pergunta qual.",
-      partnership: "Parceria. Escala pro manager.",
+      partnership: "Parceria. Usa o 'questionnaire' para detalhes do projeto e escala pro manager.",
       general_support: "Ajuda geral.",
     },
     escalateMessage: "pera, vou chamar {name}",
@@ -167,7 +167,7 @@ export function getTicketSystemPrompt(
   prompt += `\n- "needs_escalation": MUST be true if the user asks for a human, manager, refund, or if it's a partnership/collab request.`;
   prompt += `\n- "escalation_reason": Brief English reason if needs_escalation is true (e.g. "Partnership request", "Requested human").`;
   prompt += `\n- "is_resolved": True ONLY if the issue is 100% fixed and the ticket can be closed now.`;
-  prompt += `\n- "questionnaire": Optional. Use this to send an interactive form with up to 5 questions. Format: {"title": "...", "description": "...", "buttonLabel": "...", "questions": ["q1", "q2"]}`;
+  prompt += `\n- "questionnaire": Use this tool whenever you need specific details from the user (e.g. bug reproduction steps, partnership details, application forms). Format: {"title": "...", "description": "...", "buttonLabel": "...", "questions": ["q1", "q2"]}. Leave null if not needed.`;
   prompt += `\nOutput Format: {"classification":"service_inquiry|bug_report|role_request|partnership|general_support","sentiment":"positive|neutral|negative|frustrated","priority":1-10,"response":"<msg>","needs_escalation":false,"escalation_reason":null,"rename_to":null,"is_resolved":false,"todos":[],"questionnaire":null}`;
 
   return prompt;
