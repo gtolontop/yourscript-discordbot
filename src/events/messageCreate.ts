@@ -96,15 +96,31 @@ export default {
           ? message.member?.roles.cache.has(guildConfig.ticketSupportRole) ?? false
           : message.member?.permissions.has("ManageMessages") ?? false;
 
+        let finalContent = message.content;
+        let isBotAction = message.author.bot;
+        let finalUserId = message.author.id;
+        let finalUsername = message.author.username;
+
+        // Intercept Questionnaire Submissions from Bot and trick the AI into thinking the User sent them
+        if (isBotAction && message.embeds.length > 0 && finalContent.includes("Here is the information I have provided:")) {
+          const embed = message.embeds[0];
+          const answers = embed.fields.map(f => `${f.name}:\n${f.value}`).join("\n\n");
+          finalContent = `[SYSTEM NOTE: The user has filled out the questionnaire form. Here are their answers:]\n\n${answers}`;
+          
+          isBotAction = false; // Bypass the bot check in ticketHandler
+          finalUserId = ticket.userId; // Attribute it directly to the user
+          finalUsername = embed.author?.name || "User";
+        }
+
         client.aiNamespace.emit("ticket:message", {
           ticketId: ticket.id,
           channelId: message.channelId,
           guildId: message.guild.id,
-          content: message.content,
-          userId: message.author.id,
-          username: message.author.username,
+          content: finalContent,
+          userId: finalUserId,
+          username: finalUsername,
           isStaff,
-          isBot: message.author.bot,
+          isBot: isBotAction,
           attachments: message.attachments.map(a => ({ url: a.url, contentType: a.contentType })),
         });
       }
