@@ -42,6 +42,78 @@ const event: Event<"voiceStateUpdate"> = {
       return;
     }
 
+    const config = await client.db.guild.findUnique({
+      where: { id: guildId },
+    }) as any;
+
+    // VoiceMaster: Handle joining the creation hub
+    if (newState.channelId && config?.voiceMasterChannelId && newState.channelId === config.voiceMasterChannelId) {
+      if (member.id !== client.user?.id) {
+        // Check if user already owns a channel
+        const existing = await (client.db as any).tempVoice.findUnique({
+          where: { guildId_ownerId: { guildId, ownerId: member.id } }
+        });
+
+        const createTempVoice = async () => {
+          const categoryId = config.voiceMasterCategoryId;
+          try {
+            const newChannel = await oldState.guild.channels.create({
+              name: `🔊 ${member.user.username}'s Room`,
+              type: 2, // ChannelType.GuildVoice
+              parent: categoryId || null,
+              permissionOverwrites: [
+                {
+                  id: member.id,
+                  allow: ["ManageChannels", "MoveMembers", "MuteMembers", "DeafenMembers"],
+                },
+              ],
+            });
+
+            await (client.db as any).tempVoice.create({
+              data: {
+                id: newChannel.id,
+                guildId,
+                ownerId: member.id,
+              },
+            });
+
+            await member.voice.setChannel(newChannel.id).catch(() => {});
+          } catch (error) {
+            logger.error(`VoiceMaster error creating channel for ${member.user.tag}`, error);
+          }
+        };
+
+        if (existing) {
+          const existingChannel = oldState.guild.channels.cache.get(existing.id);
+          if (existingChannel) {
+            await member.voice.setChannel(existing.id).catch(() => {});
+          } else {
+            // Stale database entry
+            await (client.db as any).tempVoice.delete({ where: { id: existing.id } }).catch(() => {});
+            await createTempVoice();
+          }
+        } else {
+          await createTempVoice();
+        }
+      }
+    }
+
+    // VoiceMaster: Handle leaving a TempVoice channel
+    if (oldState.channelId && oldState.channelId !== newState.channelId) {
+      const channel = oldState.channel;
+      if (channel && channel.members.size === 0) {
+        // Check if it's a TempVoice
+        const tempVoice = await (client.db as any).tempVoice.findUnique({
+          where: { id: oldState.channelId },
+        });
+
+        if (tempVoice) {
+          await channel.delete().catch(() => {});
+          await (client.db as any).tempVoice.delete({ where: { id: oldState.channelId } }).catch(() => {});
+        }
+      }
+    }
+
     const logService = new LogService(client);
 
     // User joined a voice channel

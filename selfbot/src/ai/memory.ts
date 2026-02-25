@@ -29,7 +29,7 @@ export class MemoryManager {
       return history.memories
         .sort((a, b) => b.importance - a.importance)
         .slice(0, 5)
-        .map((m) => `[${m.type}] ${m.content}`);
+        .map((m) => `- ${m.content}`);
     }
 
     // Embed the query for similarity search
@@ -42,55 +42,59 @@ export class MemoryManager {
       return history.memories
         .sort((a, b) => b.importance - a.importance)
         .slice(0, 5)
-        .map((m) => `[${m.type}] ${m.content}`);
+        .map((m) => `- ${m.content}`);
     } catch (err) {
       logger.warn("Failed to embed query for memory retrieval, using fallback");
       return history.memories
         .slice(0, 5)
-        .map((m) => `[${m.type}] ${m.content}`);
+        .map((m) => `- ${m.content}`);
     }
   }
 
-  /**
-   * Extract and create memories from a ticket conversation
-   */
-  async createMemoriesFromConversation(
+  async processTicketClose(
     guildId: string,
     userId: string,
-    messages: Array<{ role: string; content: string }>
+    channelId: string,
+    messages: Array<{ role: string; content: string }>,
+    ticketType?: string
   ): Promise<void> {
     if (messages.length < 2) return;
 
     try {
-      // Summarize the conversation
-      const conversationText = messages
+      const messagesToKeep = messages.length > 8 ? messages.slice(-8) : messages;
+      const conversationText = messagesToKeep
         .map((m) => `${m.role === "model" ? "Staff" : "Client"}: ${m.content}`)
         .join("\n");
 
-      const summary = await this.ai.summarize(conversationText, 300);
+      // Si le ticket est très court (ex: 2 messages pour demander un support qui a été auto-résolu) on ne fait ni abstract ni memories, pour gratter $0.0001
+      if (messages.length <= 3) {
+         logger.ai(`Skipping memory extraction for ${channelId} (ticket too brief)`);
+         return;
+      }
 
-      // Extract key facts using AI
       const extractionPrompt = [
-        "Extrais les faits clés de cette conversation de support client.",
-        "Pour chaque fait, donne: type (preference|interaction|note|issue), contenu, importance (1-10).",
-        "Réponds UNIQUEMENT en JSON: [{\"type\":\"...\",\"content\":\"...\",\"importance\":N}]",
-        "Maximum 3 faits les plus importants.",
+        "Analysez la conversation.",
+        "Retourne UNIQUEMENT en JSON selon le format suivant:",
+        "{\"summary\":\"Résumé en 50 mots max\",\"key_points\":[\"point 1\",\"point 2\"],\"memories\":[{\"type\":\"preference|interaction|note|issue\",\"content\":\"Fait notable sur le client (pas le bug, mais le client lui meme)\",\"importance\":1-10}]}",
+        "Memories est une liste d'informations importantes à retenir sur l'utilisateur à long terme (ex: est mal poli, préfère parler allemand...)",
         "",
         conversationText,
       ].join("\n");
 
       const result = await this.ai.generateText(
-        "Tu es un extracteur de faits. Réponds uniquement en JSON valide.",
+        "Tu es un extracteur de faits et résumeur. Réponds uniquement en JSON valide.",
         [{ role: "user", content: extractionPrompt }],
-        { temperature: 0.2, maxTokens: 500, taskType: "memory_extraction" }
+        { temperature: 0.2, maxTokens: 800, taskType: "memory_extraction", responseFormat: "json" }
       );
 
       try {
-        const jsonMatch = result.text.match(/\[[\s\S]*\]/);
+        const jsonMatch = result.text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-          const facts: Array<{ type: string; content: string; importance: number }> = JSON.parse(jsonMatch[0]);
+          const parsed = JSON.parse(jsonMatch[0]);
 
+          const facts = Array.isArray(parsed.memories) ? parsed.memories : [];
           for (const fact of facts.slice(0, 3)) {
+            if (!fact.type || !fact.content) continue;
             try {
               await this.bridge.createMemory({
                 guildId,
@@ -101,15 +105,15 @@ export class MemoryManager {
               });
               logger.ai(`Memory saved: [${fact.type}] ${fact.content} (importance: ${fact.importance})`);
             } catch (err) {
-              logger.warn(`Failed to save memory: ${fact.content}`, err);
+              logger.warn(`Failed to save memory: ${fact.content}`);
             }
           }
         }
       } catch {
-        logger.warn("Failed to parse memory extraction result");
+        logger.warn("Failed to parse close omni JSON result");
       }
     } catch (err) {
-      logger.error("Failed to create memories from conversation:", err);
+      logger.error("Failed to process conversation close:", err);
     }
   }
 }

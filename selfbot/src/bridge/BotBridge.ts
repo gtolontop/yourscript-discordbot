@@ -23,6 +23,7 @@ import type {
   SendToThreadAction,
   CreateReminderAction,
   CreateMemoryAction,
+  RenameTicketAction,
   GenerateSummaryQuery,
   TicketSummaryResponse,
   TicketQuery,
@@ -86,20 +87,17 @@ export class BotBridge {
     (this.socket as any).on("reminder:fire", (data: any) => this.emit("reminder:fire", data));
 
     // Bind server queries (server asks selfbot, selfbot responds with callback)
-    (this.socket as any).on("query:generateSummary", async (data: any, callback: any) => {
-      const handler = this.queryHandlers.get("query:generateSummary");
-      if (handler) {
+    for (const [eventName, handler] of this.queryHandlers.entries()) {
+      (this.socket as any).on(eventName, async (data: any, callback: any) => {
         try {
           const result = await handler(data);
-          callback(result);
+          if (callback) callback(result);
         } catch (err) {
-          logger.error("Error handling query:generateSummary:", err);
-          callback({ summary: "Failed to generate summary", keyPoints: [], suggestions: [], sentiment: "neutral", trend: "stable" });
+          logger.error(`Error handling ${eventName}:`, err);
+          if (callback) callback({ error: "Handler failed" });
         }
-      } else {
-        callback({ summary: "No handler registered", keyPoints: [], suggestions: [], sentiment: "neutral", trend: "stable" });
-      }
-    });
+      });
+    }
   }
 
   disconnect(): void {
@@ -128,6 +126,17 @@ export class BotBridge {
    */
   onQuery<T, R>(event: string, handler: QueryHandler<T, R>): void {
     this.queryHandlers.set(event, handler);
+    if (this.socket?.connected) {
+      (this.socket as any).on(event, async (data: any, callback: any) => {
+        try {
+          const result = await handler(data);
+          if (callback) callback(result);
+        } catch (err) {
+          logger.error(`Error handling ${event}:`, err);
+          if (callback) callback({ error: "Handler failed" });
+        }
+      });
+    }
   }
 
   private emit(event: string, data: any): void {
@@ -147,6 +156,10 @@ export class BotBridge {
 
   async closeTicket(data: CloseTicketAction): Promise<{ success: boolean; error?: string }> {
     return this.callAction("action:closeTicket", data);
+  }
+
+  async renameTicket(data: RenameTicketAction): Promise<{ success: boolean; error?: string }> {
+    return this.callAction("action:renameTicket", data);
   }
 
   async sendAsBot(data: SendAsBotAction): Promise<{ success: boolean; error?: string }> {
@@ -183,6 +196,10 @@ export class BotBridge {
 
   async saveDaySummary(data: SaveDaySummaryAction): Promise<{ success: boolean; error?: string }> {
     return this.callAction("action:saveDaySummary", data);
+  }
+
+  async sendQuestionnaire(data: any): Promise<{ success: boolean; error?: string }> {
+    return this.callAction("action:sendQuestionnaire", data);
   }
 
   async createDMThread(data: CreateDMThreadAction): Promise<{ success: boolean; threadId?: string; error?: string }> {

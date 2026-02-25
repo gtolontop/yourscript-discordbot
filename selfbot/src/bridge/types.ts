@@ -19,6 +19,7 @@ export interface TicketMessageEvent {
   username: string;
   isStaff: boolean;
   isBot: boolean;
+  attachments?: Array<{ url: string; contentType: string | null }>;
 }
 
 export interface TicketCloseEvent {
@@ -47,6 +48,12 @@ export interface AssignRoleAction {
 export interface CloseTicketAction {
   channelId: string;
   guildId: string;
+}
+
+export interface RenameTicketAction {
+  channelId: string;
+  guildId: string;
+  newName: string;
 }
 
 export interface SendAsBotAction {
@@ -127,6 +134,15 @@ export interface SaveDaySummaryAction {
   avgCostPerTicket: number;
   byModel: string; // JSON stringified
   byTaskType: string; // JSON stringified
+}
+
+export interface SendQuestionnaireAction {
+  channelId: string;
+  guildId: string;
+  title?: string;
+  description?: string;
+  buttonLabel?: string;
+  questions: string[];
 }
 
 // ===== DM Actions =====
@@ -296,6 +312,7 @@ export interface ServerToAIEvents {
 export interface AIToServerEvents {
   "action:assignRole": (data: AssignRoleAction, callback: (result: { success: boolean; error?: string }) => void) => void;
   "action:closeTicket": (data: CloseTicketAction, callback: (result: { success: boolean; error?: string }) => void) => void;
+  "action:renameTicket": (data: RenameTicketAction, callback: (result: { success: boolean; error?: string }) => void) => void;
   "action:sendAsBot": (data: SendAsBotAction, callback: (result: { success: boolean; error?: string }) => void) => void;
   "action:addTodo": (data: AddTodoAction, callback: (result: { success: boolean; todoId?: number; error?: string }) => void) => void;
   "action:escalate": (data: EscalateAction, callback: (result: { success: boolean; error?: string }) => void) => void;
@@ -305,6 +322,7 @@ export interface AIToServerEvents {
   "action:trackAICost": (data: TrackAICostAction, callback: (result: { success: boolean; error?: string }) => void) => void;
   "action:saveTicketCost": (data: SaveTicketCostAction, callback: (result: { success: boolean; error?: string }) => void) => void;
   "action:saveDaySummary": (data: SaveDaySummaryAction, callback: (result: { success: boolean; error?: string }) => void) => void;
+  "action:sendQuestionnaire": (data: SendQuestionnaireAction, callback: (result: { success: boolean; error?: string }) => void) => void;
   "action:createDMThread": (data: CreateDMThreadAction, callback: (result: { success: boolean; threadId?: string; error?: string }) => void) => void;
   "action:sendToThread": (data: SendToThreadAction, callback: (result: { success: boolean; error?: string }) => void) => void;
   "action:createReminder": (data: CreateReminderAction, callback: (result: { success: boolean; reminderId?: number; error?: string }) => void) => void;

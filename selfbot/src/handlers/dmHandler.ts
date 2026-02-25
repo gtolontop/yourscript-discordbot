@@ -71,7 +71,7 @@ export class DMHandler {
     }
 
     // Budget check
-    if (this.ai.getBudget().isOverBudget()) {
+    if (this.ai.getRouter().isOverBudget()) {
       logger.dm(`Budget exceeded, ignoring DM from ${username}`);
       return;
     }

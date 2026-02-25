@@ -1,12 +1,6 @@
 import type { AIProvider, AIMessage, AIResponse, EmbeddingResponse } from "./provider.js";
-import { BudgetMonitor } from "./budget.js";
+import { ModelRouter, type TaskType } from "./router.js";
 import { logger } from "../utils/logger.js";
-
-const MODELS = {
-  READER: "google/gemini-2.5-flash",
-  EXECUTOR: "deepseek/deepseek-v3.2",
-  EMBEDDING: "openai/text-embedding-3-small",
-} as const;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -20,28 +14,20 @@ export interface OpenRouterOptions {
   ticketId?: string;
   guildId?: string;
   role?: "reader" | "executor";
+  responseFormat?: "json";
 }
 
 export class OpenRouterProvider implements AIProvider {
   private apiKey: string;
   private siteUrl: string;
   private siteName: string;
-  private budget: BudgetMonitor;
+  private router: ModelRouter;
 
-  constructor(apiKey: string, budget: BudgetMonitor) {
+  constructor(apiKey: string, router: ModelRouter) {
     this.apiKey = apiKey;
-    this.budget = budget;
-    this.siteUrl = process.env["OPENROUTER_SITE_URL"] ?? "https://discord-bot.local";
-    this.siteName = process.env["OPENROUTER_SITE_NAME"] ?? "Discord Bot AI";
-  }
-
-  /**
-   * Resolve model name: use explicit role, or fall back to the model string from router
-   */
-  private resolveModel(options: OpenRouterOptions = {}): string {
-    if (options.role === "reader") return MODELS.READER;
-    if (options.role === "executor") return MODELS.EXECUTOR;
-    return options.model ?? MODELS.EXECUTOR;
+    this.router = router;
+    this.siteUrl = process.env["OPENROUTER_SITE_URL"] ?? "https://your-script.com";
+    this.siteName = process.env["OPENROUTER_SITE_NAME"] ?? "Your Script";
   }
 
   /**
@@ -50,7 +36,7 @@ export class OpenRouterProvider implements AIProvider {
   private async chatRequest(
     model: string,
     messages: Array<{ role: string; content: string }>,
-    options: { temperature?: number; maxTokens?: number } = {}
+    options: { temperature?: number; maxTokens?: number; responseFormat?: "json" } = {}
   ): Promise<{ text: string; tokensIn: number; tokensOut: number; cachedTokens: number; model: string }> {
     const body: Record<string, unknown> = {
       model,
@@ -58,6 +44,10 @@ export class OpenRouterProvider implements AIProvider {
       temperature: options.temperature ?? 0.8,
       max_tokens: options.maxTokens ?? 1024,
     };
+
+    if (options.responseFormat === "json") {
+      body.response_format = { type: "json_object" };
+    }
 
     const response = await this.fetchWithRetry("https://openrouter.ai/api/v1/chat/completions", body);
 
@@ -97,12 +87,15 @@ export class OpenRouterProvider implements AIProvider {
         return await response.json();
       }
 
-      if ((response.status === 429 || response.status >= 500) && attempt < maxRetries) {
-        const retryAfter = parseInt(response.headers.get("retry-after") ?? "5");
-        const waitMs = Math.min(retryAfter * 1000, 30_000) * (attempt + 1);
-        logger.warn(`OpenRouter ${response.status} on attempt ${attempt + 1}, retrying in ${waitMs}ms`);
-        await sleep(waitMs);
-        continue;
+      if (response.status === 429 || response.status >= 500) {
+        if (attempt < maxRetries && response.status >= 500) {
+          const waitMs = 1000 * (attempt + 1);
+          await sleep(waitMs);
+          continue;
+        } else {
+          const errorText = await response.text();
+          throw new Error(`OpenRouter API error ${response.status}: ${errorText}`);
+        }
       }
 
       const errorText = await response.text();
@@ -119,13 +112,11 @@ export class OpenRouterProvider implements AIProvider {
     messages: AIMessage[],
     options: OpenRouterOptions = {}
   ): Promise<AIResponse> {
-    if (this.budget.isOverBudget()) {
+    if (this.router.isOverBudget()) {
       throw new Error("AI budget exceeded - requests blocked");
     }
 
-    const model = this.resolveModel(options);
     const startMs = Date.now();
-
     const chatMessages = [
       { role: "system", content: systemPrompt },
       ...messages.map((m) => ({
@@ -134,20 +125,58 @@ export class OpenRouterProvider implements AIProvider {
       })),
     ];
 
-    const result = await this.chatRequest(model, chatMessages, {
-      temperature: options.temperature,
-      maxTokens: options.maxTokens,
-    });
+    const taskType = (options.taskType as TaskType) || "conversation";
+    let waterfall: string[];
+    
+    try {
+      waterfall = this.router.getWaterfall(taskType);
+    } catch {
+      waterfall = [options.model ?? "meta-llama/llama-3.1-8b-instruct:free"];
+    }
+
+    if (options.model && !waterfall.includes(options.model)) {
+      waterfall.unshift(options.model);
+    }
+
+    let lastError: Error | null = null;
+    let result: any = null;
+
+    for (const model of waterfall) {
+      // Don't skip if the specific model was requested dynamically 
+      if (this.router.isHardBanned(model) && model !== options.model) continue;
+
+      try {
+        this.router.recordUsage(model);
+        result = await this.chatRequest(model, chatMessages, {
+          temperature: options.temperature ?? this.router.getTemperature(taskType as TaskType),
+          maxTokens: options.maxTokens ?? this.router.getMaxTokens(taskType as TaskType),
+          responseFormat: options.responseFormat,
+        });
+        break; // Success
+      } catch (err: any) {
+        lastError = err;
+        logger.warn(`Model ${model} failed for ${taskType}: ${err.message}`);
+        
+        // Handle rate limiting fast-fail for fallbacks
+        if (err.message.includes("429") || err.message.includes("50")) {
+          this.router.markRateLimited(model, 60);
+        }
+      }
+    }
+
+    if (!result) {
+      throw new Error(`All models failed in waterfall for ${taskType}. Last error: ${lastError?.message}`);
+    }
 
     const latencyMs = Date.now() - startMs;
 
-    this.budget.trackRequest({
+    this.router.trackRequest({
       model: result.model,
       tokensIn: result.tokensIn,
       tokensOut: result.tokensOut,
       cachedTokens: result.cachedTokens,
       latencyMs,
-      taskType: options.taskType ?? "conversation",
+      taskType,
       ticketId: options.ticketId,
       guildId: options.guildId,
     });
@@ -158,16 +187,16 @@ export class OpenRouterProvider implements AIProvider {
       tokensUsed: result.tokensIn + result.tokensOut,
     };
   }
-
+  
   async generateEmbedding(text: string): Promise<EmbeddingResponse> {
-    if (this.budget.isOverBudget()) {
+    if (this.router.isOverBudget()) {
       throw new Error("AI budget exceeded - requests blocked");
     }
 
     const startMs = Date.now();
 
     const response = await this.fetchWithRetry("https://openrouter.ai/api/v1/embeddings", {
-      model: MODELS.EMBEDDING,
+      model: "openai/text-embedding-3-small",
       input: text,
     });
 
@@ -180,8 +209,8 @@ export class OpenRouterProvider implements AIProvider {
     const latencyMs = Date.now() - startMs;
     const tokensIn = data.usage?.prompt_tokens ?? data.usage?.total_tokens ?? 0;
 
-    this.budget.trackRequest({
-      model: MODELS.EMBEDDING,
+    this.router.trackRequest({
+      model: "openai/text-embedding-3-small",
       tokensIn,
       tokensOut: 0,
       cachedTokens: 0,
@@ -191,7 +220,7 @@ export class OpenRouterProvider implements AIProvider {
 
     return {
       embedding: data.data[0]?.embedding ?? [],
-      model: data.model ?? MODELS.EMBEDDING,
+      model: data.model ?? "openai/text-embedding-3-small",
     };
   }
 
@@ -216,7 +245,6 @@ export class OpenRouterProvider implements AIProvider {
       "You are a text classifier. Respond only with valid JSON.",
       [{ role: "user", content: prompt }],
       { 
-        model: MODELS.READER, 
         temperature: 0.1, 
         maxTokens: 100, 
         taskType: "classification",
@@ -259,7 +287,6 @@ export class OpenRouterProvider implements AIProvider {
       "You are a sentiment analyzer. Respond only with valid JSON.",
       [{ role: "user", content: prompt }],
       { 
-        model: MODELS.READER, 
         temperature: 0.1, 
         maxTokens: 100, 
         taskType: "sentiment",
@@ -295,7 +322,7 @@ export class OpenRouterProvider implements AIProvider {
     const result = await this.generateText(
       "You are a summarizer.",
       [{ role: "user", content: prompt }],
-      { model: MODELS.READER, temperature: 0.3, maxTokens: 512, taskType: "summary" }
+      { temperature: 0.3, maxTokens: 512, taskType: "summary" }
     );
 
     return result.text;
@@ -340,10 +367,9 @@ export class OpenRouterProvider implements AIProvider {
       "You are a ticket summary generator. Respond only with valid JSON.",
       [{ role: "user", content: prompt }],
       { 
-        model: MODELS.READER, 
         temperature: 0.2, 
         maxTokens: 512, 
-        taskType: "ticket_summary",
+        taskType: "summary",
         ticketId: options.ticketId,
         guildId: options.guildId,
       }
@@ -373,9 +399,9 @@ export class OpenRouterProvider implements AIProvider {
   }
 
   /**
-   * Get the budget monitor instance
+   * Get the router (unified routing + budget) instance
    */
-  getBudget(): BudgetMonitor {
-    return this.budget;
+  getRouter(): ModelRouter {
+    return this.router;
   }
 }

@@ -90,6 +90,22 @@ model Guild {
   aiTodoChannel   String?
   aiDmLogChannel  String? // Channel for DM log threads
 
+  // Tebex Integration
+  tebexSecret     String? // Webhook secret from Tebex
+  tebexRoleReward String? // Role ID given on purchase
+  tebexChannel    String? // Channel for purchase logs/welcomes
+  tebexWelcomeMsg String? // Custom Tebex welcome message
+
+  // Anti-Scam & Moderation
+  antiScamEnabled Boolean @default(false)
+  antiRaidEnabled Boolean @default(false) // Locks server
+  altFlaggingEnabled Boolean @default(false)
+
+  // VoiceMaster (Temporary Voice Channels)
+  voiceMasterCategoryId String?
+  voiceMasterChannelId  String?
+
+
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   voiceSession     VoiceSession?
@@ -102,6 +118,16 @@ model VoiceSession {
   is247     Boolean  @default(false) // Mode 24/7 actif
   guild     Guild    @relation(fields: [id], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+}
+
+model TempVoice {
+  id        String   @id // Voice channel ID
+  guildId   String
+  ownerId   String   // User who created it
+  createdAt DateTime @default(now())
+  
+  // Can't have multiple TempVoices per user per guild
+  @@unique([guildId, ownerId])
 }
 
 model Ticket {
@@ -125,12 +151,16 @@ model Ticket {
 }
 
 model TicketCategory {
-  id          Int      @id @default(autoincrement())
-  guildId     String
-  name        String   // Category name (Support, Achat, etc.)
-  emoji       String?  // Emoji for the category
-  description String?  // Description shown in select menu
-  createdAt   DateTime @default(now())
+  id                Int      @id @default(autoincrement())
+  guildId           String
+  name              String   // Category name (Support, Achat, etc.)
+  emoji             String?  // Emoji for the category
+  description       String?  // Description shown in select menu
+  categoryChannelId String?  // Discord category ID where tickets open (overrides default)
+  modalTitle        String?  // Custom modal title (default: "Ticket - {name}")
+  modalFields       String   @default("[]") // JSON array of modal fields config
+  position          Int      @default(0)    // Order position in dropdown
+  createdAt         DateTime @default(now())
 
   @@unique([guildId, name])
 }
@@ -169,6 +199,8 @@ model Giveaway {
   prize         String
   winners       Int      @default(1)
   requiredRole  String?  // Role required to enter
+  requiredLevel Int?     // Level required to enter
+  requiredVoice String?  // Voice channel ID required to enter
   endsAt        DateTime
   ended         Boolean  @default(false)
   winnerIds     String   @default("[]") // JSON array of winner IDs
@@ -200,6 +232,18 @@ model AutoRole {
 
   @@unique([guildId, roleId])
 }
+
+model LevelRole {
+  id        Int      @id @default(autoincrement())
+  guildId   String
+  level     Int
+  roleId    String
+  createdAt DateTime @default(now())
+
+  @@unique([guildId, level])
+  @@unique([guildId, roleId])
+}
+
 
 model RoleAllJob {
   id            Int      @id @default(autoincrement())
@@ -459,4 +503,21 @@ model AIReminder {
   createdAt    DateTime  @default(now())
   @@index([triggerAt, fired])
   @@index([userId])
+}
+
+model TebexPayment {
+  id            String   @id // Tebex transaction ID (e.g., tbx-12345)
+  guildId       String
+  discordUserId String?
+  discordUserTag String?
+  amount        Float
+  currency      String
+  packages      String   @default("[]") // JSON array of package IDs/Names
+  status        String   // Complete, Refunded, Chargeback
+  email         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([discordUserId])
+  @@index([guildId])
 }

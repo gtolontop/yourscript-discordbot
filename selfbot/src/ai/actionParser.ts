@@ -21,9 +21,9 @@ export interface EscalateData {
 }
 
 export interface DetectedAction {
-  type: "todo" | "reminder" | "escalate" | "assign_role" | "close";
+  type: "todo" | "reminder" | "escalate" | "assign_role" | "close" | "ask_info";
   confidence: number;
-  data: TodoData | ReminderData | EscalateData;
+  data: TodoData | ReminderData | EscalateData | Record<string, never>;
 }
 
 export class ActionParser {
@@ -68,9 +68,13 @@ export class ActionParser {
       lower.includes("resolved") ||
       lower.includes("parfait") ||
       lower.includes("n'hésite pas") ||
-      lower.includes("help") ||
       lower.includes("np") ||
-      lower.includes("any time");
+      lower.includes("any time") ||
+      lower.includes("form" ) ||
+      lower.includes("giveaway") ||
+      lower.includes("partenariat") ||
+      lower.includes("partnership") ||
+      lower.includes("info");
 
     if (!hasActionHint) return [];
 
@@ -91,6 +95,8 @@ export class ActionParser {
       '  The reason MUST be professional and neutral. NOT "Model indicated X" but "Client is asking for X which requires manual approval".',
       '- close: ticket/conversation should close. Data: { "reason": "resolved" }',
       '  MUST trigger this if the AI response indicates the issue is resolved (e.g. "glad it worked", "n\'hésite pas si besoin").',
+      '- ask_info: you need more information from the user (giveaways details, website, youtube, etc). Data: {}',
+      '  MUST trigger this if you ask them for more details that would easily fit into a form.',
       "",
       "CONVERSATION:",
       conversationSnippet,
@@ -107,6 +113,7 @@ export class ActionParser {
         "You are an action extractor. Respond only with valid JSON arrays.",
         [{ role: "user", content: prompt }],
         {
+          model: "google/gemini-2.5-flash-lite", // Force the lightweight model
           temperature: 0.1,
           maxTokens: 300,
           taskType: "action_detection",
@@ -123,7 +130,7 @@ export class ActionParser {
         .filter((a) => {
           if (!a.type || !a.data || typeof a.confidence !== "number") return false;
           if (a.confidence < 0.7) return false;
-          if (!["todo", "reminder", "escalate", "assign_role", "close"].includes(a.type)) return false;
+          if (!["todo", "reminder", "escalate", "assign_role", "close", "ask_info"].includes(a.type)) return false;
           return true;
         })
         .map((a) => ({

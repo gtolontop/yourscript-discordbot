@@ -256,7 +256,79 @@ function startDailySummaryScheduler(client: any) {
             .setFooter({ text: `${todos.length} open task(s)` })
             .setTimestamp();
 
-          await (channel as any).send({ embeds: [embed] }).catch(() => {});
+         await (channel as any).send({ embeds: [embed] }).catch(() => {});
+
+          // AI Sentiment Daily Report
+          try {
+             const yesterday = new Date();
+             yesterday.setDate(yesterday.getDate() - 1);
+             const closedTickets = await client.db.ticket.findMany({
+                 where: { guildId: guildConfig.id, closedAt: { gte: yesterday } }
+             });
+             
+             if (closedTickets.length > 0 && client.aiNamespace && client.aiNamespace.sockets.size > 0) {
+                 const ticketIds = closedTickets.map((t: any) => t.id);
+                 const summaries = await client.db.ticketSummary.findMany({ where: { ticketId: { in: ticketIds } } });
+                 const summaryMap = new Map(summaries.map((s: any) => [s.ticketId, s]));
+                 
+                 const ticketData = closedTickets.map((t: any) => {
+                     const sum = summaryMap.get(t.id) as any;
+                     return `Ticket ${t.number} | Subject: ${t.subject} | Sentiment: ${sum?.sentiment ?? "unknown"} | Summary: ${sum?.summary ?? "None"}`;
+                 }).slice(0, 30).join("\\n");
+                 const aiSocket = Array.from(client.aiNamespace.sockets.values())[0] as any;
+                 
+                 aiSocket.emit("query:generateMoraleReport", { data: ticketData }, async (res: any) => {
+                    if (res && res.text) {
+                        const moraleEmbed = new EmbedBuilder()
+                            .setTitle("🧠 Daily AI Sentiment Report")
+                            .setDescription(res.text)
+                            .setColor(0x00FF00)
+                            .setFooter({ text: `Analyzed ${closedTickets.length} tickets from the last 24h` });
+                        await (channel as any).send({ embeds: [moraleEmbed] }).catch(() => {});
+                    }
+                 });
+             }
+          } catch (err) {
+              logger.error(`Failed to generate morale report for guild ${guildConfig.id}`, err);
+          }
+
+          // Weekly FAQ Generator (Mondays)
+          if (now.getDay() === 1) {
+              try {
+                 const lastWeek = new Date();
+                 lastWeek.setDate(lastWeek.getDate() - 7);
+                 
+                 const weeklyTickets = await client.db.ticket.findMany({
+                     where: { guildId: guildConfig.id, closedAt: { gte: lastWeek } }
+                 });
+
+                 if (weeklyTickets.length > 0 && client.aiNamespace && client.aiNamespace.sockets.size > 0) {
+                     const ticketIds = weeklyTickets.map((t: any) => t.id);
+                     const summaries = await client.db.ticketSummary.findMany({ where: { ticketId: { in: ticketIds } } });
+                     const summaryMap = new Map(summaries.map((s: any) => [s.ticketId, s]));
+                     
+                     const weeklyData = weeklyTickets.map((t: any) => {
+                         const sum = summaryMap.get(t.id) as any;
+                         return `Subject: ${t.subject} | Type: ${t.category} | Summary: ${sum?.summary ?? "None"}`;
+                     }).slice(0, 100).join("\\n");
+                     const aiSocket = Array.from(client.aiNamespace.sockets.values())[0] as any;
+                     
+                     aiSocket.emit("query:generateWeeklyFAQ", { data: weeklyData }, async (res: any) => {
+                        if (res && res.text) {
+                            const faqEmbed = new EmbedBuilder()
+                                .setTitle("💡 AI Suggested FAQ Additions")
+                                .setDescription("Based on last week's tickets, I suggest adding these to your Knowledge Base or FAQ channel:\\n\\n" + res.text)
+                                .setColor(0xFFA500)
+                                .setFooter({ text: `Analyzed ${weeklyTickets.length} tickets from the last 7 days` });
+                            await (channel as any).send({ embeds: [faqEmbed] }).catch(() => {});
+                        }
+                     });
+                 }
+              } catch (err) {
+                  logger.error(`Failed to generate FAQ for guild ${guildConfig.id}`, err);
+              }
+          }
+
         }
       } catch (err) {
         logger.error("Failed to run daily summary:", err);

@@ -29,6 +29,25 @@ export default {
 
     // Fetch full user data
     const fetchedUser = await client.users.fetch(user.id, { force: true });
+    
+    // Fetch Tebex details and Tickets
+    const tebexPurchases = await client.db.tebexPayment.findMany({
+      where: { discordUserId: user.id },
+      orderBy: { createdAt: 'desc' }
+    });
+    const totalSpent = tebexPurchases.reduce((acc, p) => acc + (p.status === 'Complete' ? p.amount : 0), 0);
+    
+    const tickets = await client.db.ticket.findMany({
+      where: { userId: user.id, guildId: interaction.guildId! },
+      orderBy: { createdAt: 'desc' }
+    });
+    
+    // Determine AI Trust Level
+    let trustLevel = "Neutral 🟡";
+    if (totalSpent > 100 && tickets.length < 10) trustLevel = "Highly Trusted 🟢";
+    else if (totalSpent > 50) trustLevel = "Trusted 🟢";
+    else if (tickets.length > 20) trustLevel = "Needs Review 🟠";
+    else if (tebexPurchases.some(p => p.status === 'Chargeback')) trustLevel = "High Risk 🔴";
 
     const container = new ContainerBuilder().setAccentColor(
       member?.displayColor || Colors.Primary
@@ -61,11 +80,30 @@ export default {
       `**ID:** \`${user.id}\``,
       `**Tag:** ${user.tag}`,
       `**Bot:** ${user.bot ? "Yes" : "No"}`,
+      `**Trust Level:** ${trustLevel}`,
       `**Created on:** <t:${Math.floor(user.createdTimestamp / 1000)}:D> (<t:${Math.floor(user.createdTimestamp / 1000)}:R>)`,
     ];
 
     container.addTextDisplayComponents(
       new TextDisplayBuilder().setContent(userInfo.join("\n"))
+    );
+
+    // Tebex & Tickets
+    container.addSeparatorComponents(
+      new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
+    );
+
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent("### 🛒 Store & Activity")
+    );
+
+    const activityInfo = [
+      `**Tebex Purchases:** ${tebexPurchases.length} ($${totalSpent.toFixed(2)})`,
+      `**Past Tickets:** ${tickets.length} (${tickets.filter(t => t.status === 'closed').length} closed)`,
+    ];
+
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(activityInfo.join("\n"))
     );
 
     // Member info (if in guild)

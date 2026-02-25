@@ -1,11 +1,18 @@
 import {
   SlashCommandBuilder,
   PermissionFlagsBits,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ChannelSelectMenuBuilder,
+  ChannelType,
 } from "discord.js";
 import type { Command } from "../../types/index.js";
 import { createMessage, successMessage, errorMessage } from "../../utils/index.js";
 
 const KB_CATEGORIES = ["business", "glossary", "instructions", "faq", "product"] as const;
+
+export const aiEmbedSessions = new Map<string, { embedData: any; prompt: string }>();
 
 export default {
   data: new SlashCommandBuilder()
@@ -20,6 +27,24 @@ export default {
     )
     .addSubcommand((sub) =>
       sub.setName("summary").setDescription("Generate a summary of recent tickets")
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("embed")
+        .setDescription("Generate an embed using AI")
+        .addStringOption((opt) =>
+          opt.setName("prompt").setDescription("What should the embed look like? e.g. 'rules update red border'").setRequired(true)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("handover")
+        .setDescription("Generate a shift handover summary of active open tickets")
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("staff_report")
+        .setDescription("Generate an AI performance report of the staff team for the last 30 days")
     )
     .addSubcommand((sub) =>
       sub
@@ -100,6 +125,14 @@ export default {
             )
             .addStringOption((opt) =>
               opt.setName("value").setDescription("New content").setRequired(true)
+            )
+        )
+        .addSubcommand((sub) =>
+          sub
+            .setName("learn")
+            .setDescription("Feed raw facts/rules. AI will clean and save it.")
+            .addStringOption((opt) =>
+              opt.setName("text").setDescription("Raw facts/info to learn").setRequired(true)
             )
         )
     ),
@@ -238,6 +271,186 @@ export default {
         );
       }
 
+      case "embed": {
+        const prompt = interaction.options.getString("prompt", true);
+        
+        await interaction.deferReply({ ephemeral: true });
+
+        if (!client.aiNamespace || client.aiNamespace.sockets.size === 0) {
+            return interaction.editReply(errorMessage({ description: "AI selfbot is not connected. Make sure the backend AI is running." }));
+        }
+
+        const aiSocket = Array.from(client.aiNamespace.sockets.values())[0]!;
+        const timeout = setTimeout(() => {
+            interaction.editReply(errorMessage({ description: "AI request timed out after 15 seconds." }));
+        }, 15000);
+
+        aiSocket.emit("query:generateEmbed" as any, { prompt }, async (result: any) => {
+            clearTimeout(timeout);
+            if (result.error) {
+                return interaction.editReply(errorMessage({ description: `AI Failed: ${result.error}` }));
+            }
+            try {
+                const embedData = result.embed;
+                let numericColor: number | undefined;
+                if (embedData.color) {
+                   const c = parseInt(embedData.color.replace("#", ""), 16);
+                   if (!isNaN(c)) numericColor = c;
+                }
+                
+                const msg = createMessage({
+                   title: embedData.title,
+                   description: embedData.description || "Generated without description",
+                   ...(numericColor !== undefined ? { color: numericColor } : { color: "Primary" }),
+                   ...(embedData.footer && { footer: embedData.footer }),
+                   ...(embedData.fields && { fields: embedData.fields })
+                });
+
+                // Enregistre en mémoire
+                const sessionId = interaction.id;
+                aiEmbedSessions.set(sessionId, { embedData, prompt });
+                
+                // Nettoyage après 1h
+                setTimeout(() => {
+                   aiEmbedSessions.delete(sessionId);
+                }, 1000 * 60 * 60);
+                
+                // Affiche l'embed en ephemeral
+                await interaction.editReply({ ...msg });
+
+                const row1 = new ActionRowBuilder<ButtonBuilder>().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`ai_embed_modify_${sessionId}`)
+                        .setLabel("Modifier avec l'IA")
+                        .setEmoji("✏️")
+                        .setStyle(ButtonStyle.Secondary)
+                );
+
+                const row2 = new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(
+                    new ChannelSelectMenuBuilder()
+                        .setCustomId(`ai_embed_send_${sessionId}`)
+                        .setPlaceholder("Sélectionnez le salon d'envoi")
+                        .setChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+                );
+
+                await interaction.followUp({
+                    content: "-# Que souhaitez-vous faire avec cet embed ?",
+                    components: [row1, row2],
+                    ephemeral: true
+                });
+
+                return;
+            } catch (err: any) {
+                return interaction.editReply(errorMessage({ description: `Error formatting embed: ${err.message}` }));
+            }
+        });
+        return;
+      }
+
+      case "handover": {
+        await interaction.deferReply();
+
+        const activeTickets = await client.db.ticket.findMany({
+          where: {
+            guildId,
+            status: "open",
+            lastActivity: { gte: new Date(Date.now() - 12 * 60 * 60 * 1000) } // Last 12h
+          },
+        });
+
+        if (activeTickets.length === 0) {
+            return interaction.editReply(errorMessage({ description: "There are no active open tickets in the last 12 hours to summarize." }));
+        }
+
+        if (!client.aiNamespace || client.aiNamespace.sockets.size === 0) {
+            return interaction.editReply(errorMessage({ description: "AI selfbot not connected." }));
+        }
+
+        const ticketData = activeTickets.map(t => `Ticket ${t.number} | Subject: ${t.subject ?? 'No subject'} | Priority: ${t.priority} | ClaimedBy: ${t.claimedBy ? `<@${t.claimedBy}>` : 'None'}`).slice(0, 30).join("\\n");
+        const aiSocket = Array.from(client.aiNamespace.sockets.values())[0] as any;
+
+        const timeout = setTimeout(() => {
+            interaction.editReply(errorMessage({ description: "AI request timed out after 15 seconds." }));
+        }, 15000);
+
+        aiSocket.emit("query:generateHandover", { data: ticketData }, async (result: any) => {
+            clearTimeout(timeout);
+            if (result.error) {
+                return interaction.editReply(errorMessage({ description: `AI Failed: ${result.error}` }));
+            }
+            
+            const { EmbedBuilder } = await import("discord.js");
+            const embed = new EmbedBuilder()
+                .setTitle("📋 Shift Handover Summary")
+                .setDescription(result.text)
+                .setColor(0x5865f2)
+                .setFooter({ text: `Summarized ${activeTickets.length} active tickets from the last 12h`, iconURL: interaction.user.displayAvatarURL() })
+                .setTimestamp();
+            
+            return interaction.editReply({ embeds: [embed] });
+        });
+        return;
+      }
+
+      case "staff_report": {
+        await interaction.deferReply({ ephemeral: true });
+
+        const lastMonth = new Date();
+        lastMonth.setDate(lastMonth.getDate() - 30);
+
+        const closedTickets = await client.db.ticket.findMany({
+          where: {
+            guildId,
+            status: "closed",
+            closedAt: { gte: lastMonth }
+          }
+        });
+
+        if (closedTickets.length === 0) {
+            return interaction.editReply(errorMessage({ description: "No closed tickets found in the last 30 days to analyze." }));
+        }
+
+        const ticketIds = closedTickets.map(t => t.id);
+        const summaries = await client.db.ticketSummary.findMany({
+          where: { ticketId: { in: ticketIds } }
+        });
+        const summaryMap = new Map(summaries.map(s => [s.ticketId, s]));
+
+        if (!client.aiNamespace || client.aiNamespace.sockets.size === 0) {
+            return interaction.editReply(errorMessage({ description: "AI selfbot not connected." }));
+        }
+
+        // We map necessary minimal data to prevent token explosion
+        const ticketData = closedTickets.map(t => {
+            const sum = summaryMap.get(t.id);
+            return `ClaimedBy: ${t.claimedBy ? `<@${t.claimedBy}>` : 'Unclaimed'} | Rating: ${t.reviewRating ? t.reviewRating + '/5' : 'None'} | Sentiment: ${sum?.sentiment ?? 'Neutral'}`;
+        }).join("\\n");
+
+        const aiSocket = Array.from(client.aiNamespace.sockets.values())[0] as any;
+
+        const timeout = setTimeout(() => {
+            interaction.editReply(errorMessage({ description: "AI request timed out after 15 seconds." }));
+        }, 15000);
+
+        aiSocket.emit("query:generateStaffReport", { data: ticketData }, async (result: any) => {
+            clearTimeout(timeout);
+            if (result.error) {
+                return interaction.editReply(errorMessage({ description: `AI Failed: ${result.error}` }));
+            }
+            
+            const { EmbedBuilder } = await import("discord.js");
+            const embed = new EmbedBuilder()
+                .setTitle("📊 AI Monthly Staff Performance Report")
+                .setDescription(result.text)
+                .setColor(0x5865f2)
+                .setFooter({ text: `Analyzed ${closedTickets.length} closed tickets from the last 30 days`, iconURL: interaction.user.displayAvatarURL() })
+                .setTimestamp();
+            
+            return interaction.editReply({ embeds: [embed] });
+        });
+        return;
+      }
+
       case "memory": {
         const user = interaction.options.getUser("user", true);
 
@@ -334,6 +547,53 @@ async function handleKnowledge(
           errorMessage({ description: "Failed to add knowledge entry." })
         );
       }
+    }
+
+    case "learn": {
+      const text = interaction.options.getString("text", true);
+      
+      await interaction.deferReply();
+
+      if (!client.aiNamespace || client.aiNamespace.sockets.size === 0) {
+        return interaction.editReply(errorMessage({ description: "AI selfbot is not connected." }));
+      }
+
+      const aiSocket = Array.from(client.aiNamespace.sockets.values())[0]!;
+      const timeout = setTimeout(() => {
+        interaction.editReply(errorMessage({ description: "AI request timed out after 15 seconds." }));
+      }, 15000);
+
+      (aiSocket as any).emit("query:generateLearning", { text }, async (result: any) => {
+        clearTimeout(timeout);
+        
+        if (result.error) {
+          return interaction.editReply(errorMessage({ description: `AI Failed: ${result.error}` }));
+        }
+        
+        const { category, key, value } = result.data;
+        if (!category || !key || !value) {
+            return interaction.editReply(errorMessage({ description: "AI returned incomplete data structure." }));
+        }
+
+        try {
+          await client.db.aIKnowledge.upsert({
+            where: { guildId_key: { guildId, key } },
+            update: { value, category, updatedAt: new Date() },
+            create: { guildId, category, key, value },
+          });
+
+          return interaction.editReply(
+            successMessage({
+              description: `${categoryEmoji[category] ?? "📄"} AI learned and added **${key}** to \`${category}\`:\n> ${value.substring(0, 200)}${value.length > 200 ? "..." : ""}`,
+            })
+          );
+        } catch (err) {
+          return interaction.editReply(
+            errorMessage({ description: "Failed to save AI-learned knowledge entry." })
+          );
+        }
+      });
+      return;
     }
 
     case "list": {

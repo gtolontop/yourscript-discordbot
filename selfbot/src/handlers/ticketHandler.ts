@@ -19,6 +19,7 @@ import type {
   TicketMessageEvent,
   TicketCloseEvent,
 } from "../bridge/types.js";
+import { isTooShortOrUseless, isAbusive } from "../utils/abuseFilter.js";
 
 // Only escalate when user explicitly asks for human/manager or money-related issues
 const ESCALATION_KEYWORDS = [
@@ -55,6 +56,14 @@ const waitingForUser = new Set<string>();
 // Track staff-backed-off channels with the staff userId and timestamp
 const staffBackedOff = new Map<string, { staffId: string; lastStaffMsg: number; lastUserMsg: number }>();
 
+// Track the last time a user pinged staff in a channel to prevent spam (Smart Ping Management)
+const lastStaffPings = new Map<string, number>();
+const ticketRenamed = new Set<string>(); // Track tickets already renamed to avoid spamming renames
+
+// Debounce system: batch rapid user messages into 1 LLM call
+const DEBOUNCE_MS = 3000;
+const pendingMessages = new Map<string, { timer: ReturnType<typeof setTimeout>; messages: string[]; data: TicketMessageEvent }>();
+
 export class TicketHandler {
   private context: ContextManager;
   private memory: MemoryManager;
@@ -64,6 +73,8 @@ export class TicketHandler {
   private ticketSentiments = new Map<string, Array<{ sentiment: string; score: number; timestamp: number }>>();
   // Knowledge base cache per guild (refreshed every 5 min)
   private knowledgeCache = new Map<string, { entries: KnowledgeItem[]; fetchedAt: number }>();
+  // Track active AI generations to prevent overlapping responses and double replies
+  private activeGenerations = new Map<string, number>();
 
   constructor(
     private selfbot: SelfbotClient,
@@ -111,6 +122,22 @@ export class TicketHandler {
     if (data.userId === this.selfbot.user?.id) return;
 
     const channelId = data.channelId;
+
+    if (isAbusive(data.content)) {
+       const channel = await this.selfbot.channels.fetch(channelId).catch(() => null);
+       if (channel?.isText()) await (channel as any).send("Merci de rester respectueux pour que nous puissions vous aider.");
+       return;
+    }
+
+    if (isTooShortOrUseless(data.content)) {
+       // Still add to debounce buffer if there's a pending batch (user might be typing in parts)
+       const pending = pendingMessages.get(channelId);
+       if (pending) {
+         // Don't add useless content but don't block the timer
+         return;
+       }
+       return;
+    }
 
     // If staff is talking, AI backs off but tracks it
     if (data.isStaff) {
@@ -169,6 +196,30 @@ export class TicketHandler {
       } else {
         return;
       }
+    }
+
+    // Smart Ping Management: Avoid repeated @Staff or role pings
+    const pingRegex = /<@&\d+>|@everyone|@here/i;
+    if (pingRegex.test(data.content)) {
+      const now = Date.now();
+      const lastPing = lastStaffPings.get(channelId) || 0;
+      // 1 hour cooldown for pings
+      if (now - lastPing < 60 * 60 * 1000) {
+        logger.ai(`Preventing frequent staff ping in ${channelId}`);
+        const channel = await this.selfbot.channels.fetch(channelId).catch(() => null);
+        if (channel?.isText()) {
+           const lang = this.ticketLanguages.get(channelId) ?? "en";
+           const warnings: Record<string, string> = {
+             en: "Please avoid pinging staff multiple times. Bumping the ticket doesn't speed up response times. We'll get to you as soon as possible.",
+             fr: "Merci de ne pas mentionner le staff plusieurs fois. Relancer le ticket n'accélère pas le temps de réponse. Nous te répondrons dès que possible.",
+             es: "Por favor evita mencionar al staff múltiples veces. Etiquetar no acelera el tiempo de respuesta. Te atenderemos lo antes posible."
+           };
+           await (channel as any).send(warnings[lang] ?? warnings.en);
+        }
+        // Do NOT continue processing the message to let AI ignore the spam? No, just warn and let AI handle as normal, or just return to ignore the ping. 
+        // Returning to ignore is fine, effectively acting as an automod. But let's process it still.
+      }
+      lastStaffPings.set(channelId, now);
     }
 
     // If we were waiting for user's first message
@@ -300,32 +351,7 @@ export class TicketHandler {
       return;
     }
 
-    // Sentiment check + track for summary temperature
-    let sentiment = "neutral";
-    let sentimentScore = 0.5;
-    try {
-      const result = await this.ai.analyzeSentiment(data.content, {
-        ticketId: channelId,
-        guildId: data.guildId,
-      });
-      sentiment = result.sentiment;
-      sentimentScore = result.score;
-    } catch {}
-
-    // Track sentiment history for summaries
-    if (!this.ticketSentiments.has(channelId)) {
-      this.ticketSentiments.set(channelId, []);
-    }
-    this.ticketSentiments.get(channelId)!.push({
-      sentiment,
-      score: sentimentScore,
-      timestamp: Date.now(),
-    });
-
-    // Only reduce confidence if content suggests AI doesn't know, not just rudeness
-    if (sentiment === "frustrated") {
-      this.context.reduceConfidence(channelId, 0.05);
-    }
+    // Sentiment is now handled inside the Omni JSON response — no separate call needed
 
     // Only escalate on very low confidence (AI really can't handle this)
     if (state.confidence < MIN_CONFIDENCE_THRESHOLD && state.exchangeCount >= 3) {
@@ -333,21 +359,70 @@ export class TicketHandler {
       return;
     }
 
-    // Periodic memory refresh every 5 exchanges
-    if (state.exchangeCount > 0 && state.exchangeCount % 5 === 0) {
-      try {
-        const memories = await this.memory.retrieveMemories(data.guildId, state.userId, data.content);
-        this.context.setMemories(channelId, memories);
-        // Rebuild system prompt with fresh memories
-        const knowledge = await this.getKnowledge(data.guildId);
-        const memoryContext = memories.length > 0 ? `You know this about the client:\n${memories.join("\n")}` : undefined;
-        const systemPrompt = getTicketSystemPrompt(state.ticketType ?? "general_support", lang, memoryContext, knowledge);
-        this.context.setSystemPrompt(channelId, systemPrompt);
-      } catch {}
+    // Add message content (may be batched via debounce)
+    let userContent = data.content;
+    
+    // Process attachments immediately (no debounce for images)
+    if (data.attachments && data.attachments.length > 0) {
+      const imageAttachments = data.attachments.filter(a => a.contentType?.startsWith('image/'));
+      if (imageAttachments.length > 0) {
+        logger.ai(`Found ${imageAttachments.length} images in ${channelId}, checking vision model...`);
+        try {
+          const model = this.router.getModel("quick_response");
+          const visionResult = await this.ai.generateText(
+            "You are a helpful OCR and screenshot analyzer. Read the provided user image/text. Reply with a short summary of what the image shows, including any error codes or important text visible. Do not solve the issue, just describe the screenshot for another AI.",
+            [
+              { role: "user", content: data.content },
+              ...imageAttachments.map(img => ({
+                role: "user" as const,
+                content: `[Image URL: ${img.url}]`
+              }))
+            ],
+            { model, temperature: 0.1, maxTokens: 300, taskType: "classification" }
+          );
+          userContent += `\n\n[System Note: User attached an image. Vision AI description: ${visionResult.text}]`;
+        } catch (err) {
+          logger.warn(`Failed to process image attachment in ${channelId}`, err);
+        }
+      }
     }
 
-    // Add message and respond
-    this.context.addMessage(channelId, "user", data.content);
+    // === DEBOUNCE: Batch rapid messages into 1 LLM call ===
+    const existing = pendingMessages.get(channelId);
+    if (existing) {
+      // User sent another message within the debounce window — add it to the buffer
+      clearTimeout(existing.timer);
+      existing.messages.push(userContent);
+      existing.data = data; // Keep latest event data
+      existing.timer = setTimeout(() => this.flushPendingMessages(channelId, lang), DEBOUNCE_MS);
+      logger.ai(`Debouncing message in ${channelId} (${existing.messages.length} buffered)`);
+      return;
+    }
+
+    // First message — start debounce timer
+    const timer = setTimeout(() => this.flushPendingMessages(channelId, lang), DEBOUNCE_MS);
+    pendingMessages.set(channelId, { timer, messages: [userContent], data });
+  }
+
+  /**
+   * Flush debounced messages and send 1 LLM call
+   */
+  private async flushPendingMessages(channelId: string, lang: SupportedLanguage): Promise<void> {
+    const pending = pendingMessages.get(channelId);
+    if (!pending) return;
+    pendingMessages.delete(channelId);
+
+    const data = pending.data;
+    const state = this.context.get(channelId);
+    if (!state) return;
+
+    // Merge all buffered messages into 1 user message  
+    const mergedContent = pending.messages.join("\n");
+    this.context.addMessage(channelId, "user", mergedContent);
+
+    if (pending.messages.length > 1) {
+      logger.ai(`Flushing ${pending.messages.length} batched messages in ${channelId}`);
+    }
 
     const channel = await this.selfbot.channels.fetch(channelId).catch(() => null);
     if (!channel || !channel.isText()) return;
@@ -356,9 +431,22 @@ export class TicketHandler {
       const taskType = this.determineTaskType(state.ticketType, state.exchangeCount);
       const model = this.router.getModel(taskType);
 
+      // Track generation to drop this response if a newer one starts
+      const currentGen = (this.activeGenerations.get(channelId) || 0) + 1;
+      this.activeGenerations.set(channelId, currentGen);
+
+      const fullPrompt = this.context.getFullSystemPrompt(channelId);
+      let messagesContext = this.context.getMessages(channelId);
+      // Give the model a good memory of the ticket by keeping up to 15 messages in context. 
+      // (Used to be only 4, which gave the AI amnesia).
+      if (messagesContext.length > 15) {
+         messagesContext = messagesContext.slice(-15);
+      }
+      logger.ai(`Generating response in ${channelId} | Task: ${taskType} | System Prompt Length: ${fullPrompt.length} chars | History: ${messagesContext.length} messages`);
+
       const response = await this.ai.generateText(
-        this.context.getFullSystemPrompt(channelId),
-        this.context.getMessages(channelId),
+        fullPrompt,
+        messagesContext,
         {
           model,
           temperature: this.router.getTemperature(taskType),
@@ -366,37 +454,16 @@ export class TicketHandler {
           taskType,
           ticketId: channelId,
           guildId: data.guildId,
+          responseFormat: "json"
         }
       );
 
-      this.context.addMessage(channelId, "model", response.text);
-
-      const baseDelay = parseInt(process.env["AI_RESPONSE_DELAY"] ?? "3");
-      await simulateTyping(channel, response.text.length, baseDelay);
-
-      await (channel as any).send(response.text);
-
-      await this.processAIActions(response.text, data);
-
-      // Proactive suggestion every 4 exchanges
-      if (state.exchangeCount > 0 && state.exchangeCount % 4 === 0) {
-        try {
-          const lastMessages = this.context.getMessages(channelId).slice(-4)
-            .map((m) => `[${m.role}]: ${m.content}`)
-            .join("\n");
-          const suggestion = await this.ai.classifyText(
-            lastMessages,
-            ["suggest_service", "suggest_specialist", "suggest_ticket", "no_suggestion"],
-            "Should we proactively suggest something to help the user?"
-          );
-          if (suggestion.confidence >= 0.8 && suggestion.category !== "no_suggestion") {
-            // Store the suggestion as context for the next system prompt rebuild
-            const hint = `PROACTIVE HINT: Based on the conversation, consider suggesting: ${suggestion.category.replace("suggest_", "")}`;
-            const currentPrompt = this.context.getFullSystemPrompt(channelId);
-            this.context.setSystemPrompt(channelId, currentPrompt + `\n\n${hint}`);
-          }
-        } catch {}
+      if (this.activeGenerations.get(channelId) !== currentGen) {
+        logger.ai(`Generation superseded in ${channelId}, dropping batched response`);
+        return;
       }
+
+      await this.processOmniResponse(channelId, data, response.text, lang);
     } catch (err) {
       logger.error("Failed to respond:", err);
     }
@@ -409,14 +476,21 @@ export class TicketHandler {
     waitingForUser.delete(data.channelId);
     staffBackedOff.delete(data.channelId);
 
+    // Cancel any pending debounced messages
+    const pending = pendingMessages.get(data.channelId);
+    if (pending) {
+      clearTimeout(pending.timer);
+      pendingMessages.delete(data.channelId);
+    }
+
     const state = this.context.get(data.channelId);
     if (!state) return;
 
     logger.ai(`Ticket closed in ${data.channelId}`);
 
     // Close budget tracking for this ticket
-    const budget = this.ai.getBudget();
-    const ticketCost = budget.closeTicket(data.channelId);
+    const router = this.ai.getRouter();
+    const ticketCost = router.closeTicket(data.channelId);
     if (ticketCost) {
       try {
         await this.bridge.saveTicketCost({
@@ -433,11 +507,13 @@ export class TicketHandler {
     }
 
     const messages = state.messages.map((m) => ({ role: m.role, content: m.content }));
-    await this.memory.createMemoriesFromConversation(data.guildId, state.userId, messages);
+    await this.memory.processTicketClose(data.guildId, state.userId, data.channelId, messages, state.ticketType ?? undefined);
 
     this.context.remove(data.channelId);
     this.ticketLanguages.delete(data.channelId);
     this.ticketSentiments.delete(data.channelId);
+    this.activeGenerations.delete(data.channelId);
+    ticketRenamed.delete(data.channelId);
   }
 
   getActiveCount(): number {
@@ -515,16 +591,9 @@ export class TicketHandler {
     const guildId = data.guildId;
     const userId = data.userId;
 
-    // Classify
-    const categories = ["service_inquiry", "bug_report", "role_request", "partnership", "general_support"];
-    let ticketType = "general_support";
+    // Classify using Omni, no need to pre-classify
+    const ticketType = "general_support";
     let confidence = 0.7;
-
-    try {
-      const result = await this.ai.classifyText(userMessage, categories);
-      ticketType = result.category;
-      confidence = result.confidence;
-    } catch {}
 
     this.context.setTicketType(channelId, ticketType, confidence);
 
@@ -549,6 +618,8 @@ export class TicketHandler {
 
     try {
       const model = this.router.getModel("quick_response");
+      const currentGen = (this.activeGenerations.get(channelId) || 0) + 1;
+      this.activeGenerations.set(channelId, currentGen);
 
       const response = await this.ai.generateText(
         this.context.getFullSystemPrompt(channelId),
@@ -556,19 +627,20 @@ export class TicketHandler {
         {
           model,
           temperature: 0.9,
-          maxTokens: 256,
+          maxTokens: 512,
           taskType: "quick_response",
           ticketId: channelId,
           guildId,
+          responseFormat: "json"
         }
       );
 
-      this.context.addMessage(channelId, "model", response.text);
+      if (this.activeGenerations.get(channelId) !== currentGen) {
+        logger.ai(`Generation superseded in ${channelId}, dropping initial response`);
+        return;
+      }
 
-      const baseDelay = parseInt(process.env["AI_RESPONSE_DELAY"] ?? "3");
-      await simulateTyping(channel, response.text.length, baseDelay + Math.random() * 3);
-
-      await (channel as any).send(response.text);
+      await this.processOmniResponse(channelId, data, response.text, lang);
       logger.ai(`Responded in ${channelId}`);
     } catch (err: any) {
       if (err.code === 10003) {
@@ -655,7 +727,7 @@ export class TicketHandler {
     const assigneeName = assignee ? `<@${assignee.userId}>` : "the team";
 
     let level: "normal" | "high" | "critical" = "normal";
-    const lower = data.content.toLowerCase();
+    const lower = ('content' in data && (data as any).content ? (data as any).content.toLowerCase() : "");
     if (lower.includes("urgent") || lower.includes("urgente") || lower.includes("remboursement") || lower.includes("refund")) {
       level = "high";
     }
@@ -700,101 +772,124 @@ export class TicketHandler {
     return "conversation";
   }
 
-  private async processAIActions(response: string, data: TicketMessageEvent): Promise<void> {
-    if (!this.actionParser) {
-      // Fallback to basic string matching if no actionParser
-      const lower = response.toLowerCase();
-      if (lower.includes("je note") || lower.includes("je crée") ||
-          lower.includes("i'll create") || lower.includes("i'll note") ||
-          lower.includes("let me note")) {
-        try {
-          await this.bridge.addTodo({
-            guildId: data.guildId,
-            title: `Ticket: ${data.content.substring(0, 100)}`,
-            description: `Channel ${data.channelId}, user ${data.userId}`,
-            priority: "normal",
-          });
-        } catch {}
+  private async processOmniResponse(
+    channelId: string,
+    data: TicketMessageEvent | TicketNewEvent,
+    rawText: string,
+    lang: SupportedLanguage
+  ): Promise<void> {
+    const channel = await this.selfbot.channels.fetch(channelId).catch(() => null);
+    if (!channel || !channel.isText()) return;
+
+    let responseText = rawText;
+    let parsed: any = null;
+
+    try {
+      const match = rawText.match(/\{[\s\S]*\}/);
+      if (match) {
+        parsed = JSON.parse(match[0]);
+        if (parsed.response) responseText = parsed.response;
       }
+    } catch {
+      logger.warn(`Failed to parse Omni JSON in ${channelId}, Using string: ${rawText}`);
+    }
+
+    if (!parsed) {
+      this.context.addMessage(channelId, "model", responseText);
+      const baseDelay = parseInt(process.env["AI_RESPONSE_DELAY"] ?? "3");
+      await simulateTyping(channel, responseText.length, baseDelay);
+      await (channel as any).send(responseText);
       return;
     }
 
+    // Process parsed data
+    const state = this.context.get(channelId);
+    if (parsed.classification) {
+      this.context.setTicketType(channelId, parsed.classification, state?.confidence ?? 0.8);
+    }
+    
+    if (parsed.sentiment) {
+      let score = 0.5;
+      if (parsed.sentiment === "positive") score = 0.9;
+      if (parsed.sentiment === "negative") score = 0.2;
+      if (parsed.sentiment === "frustrated") score = 0.1;
+      
+      if (!this.ticketSentiments.has(channelId)) this.ticketSentiments.set(channelId, []);
+      this.ticketSentiments.get(channelId)!.push({ sentiment: parsed.sentiment, score, timestamp: Date.now() });
+      if (parsed.sentiment === "frustrated") this.context.reduceConfidence(channelId, 0.05);
+    }
+
+    // Send Response First
+    this.context.addMessage(channelId, "model", responseText);
+    const baseDelay = parseInt(process.env["AI_RESPONSE_DELAY"] ?? "3");
+    await simulateTyping(channel, responseText.length, baseDelay);
     try {
-      const state = this.context.get(data.channelId);
-      const actions = await this.actionParser.detectActions(
-        this.context.getMessages(data.channelId),
-        response,
-        {
-          channelId: data.channelId,
-          guildId: data.guildId,
-          userId: data.userId,
-          ticketType: state?.ticketType ?? undefined,
-        }
-      );
-
-      for (const action of actions) {
-        if (action.confidence < 0.7) continue;
-        switch (action.type) {
-          case "todo": {
-            const todoData = action.data as { title: string; description?: string; priority?: string };
-            await this.bridge.addTodo({
-              guildId: data.guildId,
-              title: todoData.title,
-              description: todoData.description,
-              priority: (todoData.priority as any) ?? "normal",
-            });
-            break;
-          }
-          case "reminder": {
-            const reminderData = action.data as { content: string; delayMs: number };
-            await this.bridge.createReminder({
-              guildId: data.guildId,
-              userId: data.userId,
-              content: reminderData.content,
-              channelId: data.channelId,
-              triggerAt: new Date(Date.now() + reminderData.delayMs).toISOString(),
-              sourceType: "ticket",
-              sourceId: data.channelId,
-            });
-            break;
-          }
-          case "escalate": {
-            const escalateData = action.data as { reason: string; specialtyNeeded?: string };
-            const lang = this.ticketLanguages.get(data.channelId) ?? "en";
-            
-            // Check if the AI's natural response already sounds like an escalation
-            // to avoid sending a redundant canned message.
-            const lowerResponse = response.toLowerCase();
-            const alreadyAwaitingTeam = 
-              lowerResponse.includes("team") || 
-              lowerResponse.includes("manager") || 
-              lowerResponse.includes("someone") ||
-              lowerResponse.includes("ask") ||
-              lowerResponse.includes("attends") ||
-              lowerResponse.includes("un instant") ||
-              lowerResponse.includes("patience");
-
-            // Call handleEscalation with silence if AI already acknowledged it.
-            await this.handleEscalation(data, lang, escalateData.reason, escalateData.specialtyNeeded, alreadyAwaitingTeam);
-            break;
-          }
-          case "close": {
-            logger.ai(`AI decided to close the ticket in ${data.channelId}`);
-            try {
-              await this.bridge.requestClose({
-                channelId: data.channelId,
-                guildId: data.guildId,
-                userId: data.userId,
-              });
-            } catch (err) {
-              logger.error(`Failed to request close for AI action in ${data.channelId}:`, err);
-            }
-            break;
-          }
-        }
+      await (channel as any).send(responseText);
+    } catch (err: any) {
+      if (err.code === 10003) {
+        logger.ai(`Channel ${channelId} was deleted/closed before response could be sent`);
+        return; // Stop all actions, ticket is gone
       }
-    } catch (err) {
-      logger.error("Failed to process AI actions:", err);
+      throw err;
+    }
+
+    // --- ACTIONS ---
+    if (parsed.needs_escalation) {
+      const lowerResponse = responseText.toLowerCase();
+      const alreadyAwaitingTeam = lowerResponse.match(/team|manager|someone|ask|attends|instant|patience/);
+      await this.handleEscalation(data as any, lang, parsed.escalation_reason, parsed.escalation_specialty, !!alreadyAwaitingTeam);
+    }
+
+    if (parsed.rename_to && typeof parsed.rename_to === "string" && parsed.rename_to.length > 2 && !ticketRenamed.has(channelId)) {
+      try {
+        let newName = parsed.rename_to.trim().toLowerCase().replace(/[^a-z0-9-]/g, "").substring(0, 30);
+        const ticketNumMatch = channel && "name" in channel ? (channel as any).name.match(/-\d+$/) : null;
+        const suffix = ticketNumMatch ? ticketNumMatch[0] : "";
+        if (!newName.endsWith(suffix) && suffix !== "") newName += suffix;
+        if (channel && "name" in channel && (channel as any).name !== newName) {
+           logger.ai(`Renaming ticket ${channelId} to ${newName}`);
+           await this.bridge.renameTicket({ channelId, guildId: data.guildId, newName });
+        }
+        ticketRenamed.add(channelId); // Only rename once per ticket
+      } catch (err) {
+        logger.warn(`Failed to rename ticket via Omni JSON:`, err);
+      }
+    }
+
+    if (parsed.questionnaire && Array.isArray(parsed.questionnaire.questions) && parsed.questionnaire.questions.length > 0) {
+      logger.ai(`Sending interactive questionnaire in ${channelId}`);
+      try {
+        await this.bridge.sendQuestionnaire({
+          channelId,
+          guildId: data.guildId,
+          title: parsed.questionnaire.title,
+          description: parsed.questionnaire.description,
+          buttonLabel: parsed.questionnaire.buttonLabel,
+          questions: parsed.questionnaire.questions,
+        });
+      } catch (err) {
+        logger.error(`Failed to send questionnaire in ${channelId}:`, err);
+      }
+    }
+
+    if (parsed.is_resolved) {
+      logger.ai(`AI marked ticket resolved in ${channelId}`);
+      try {
+        await this.bridge.requestClose({ channelId: data.channelId, guildId: data.guildId, userId: data.userId });
+      } catch {}
+    }
+
+    if (parsed.todos && Array.isArray(parsed.todos)) {
+      for (const t of parsed.todos) {
+        if (!t.title) continue;
+        try {
+          await this.bridge.addTodo({
+            guildId: data.guildId,
+            title: t.title,
+            priority: t.priority ?? "normal",
+          });
+        } catch {}
+      }
     }
   }
 }

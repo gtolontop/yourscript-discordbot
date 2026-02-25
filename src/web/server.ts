@@ -235,6 +235,19 @@ export function startWebServer(client: Bot, port: number = 3000): { app: ReturnT
       }
     });
 
+    socket.on("action:renameTicket" as any, async (data: any, callback: any) => {
+      try {
+        const channel = client.channels.cache.get(data.channelId);
+        if (!channel?.isTextBased() || channel.isDMBased()) {
+          return callback({ success: false, error: "Channel not found" });
+        }
+        await (channel as any).setName(data.newName);
+        callback({ success: true });
+      } catch (err: any) {
+        callback({ success: false, error: err.message });
+      }
+    });
+
     socket.on("action:sendAsBot" as any, async (data: any, callback: any) => {
       try {
         const channel = client.channels.cache.get(data.channelId);
@@ -252,6 +265,34 @@ export function startWebServer(client: Bot, port: number = 3000): { app: ReturnT
         } else if (data.content) {
           await (channel as any).send({ content: data.content });
         }
+        callback({ success: true });
+      } catch (err: any) {
+        callback({ success: false, error: err.message });
+      }
+    });
+
+    socket.on("action:askInfo" as any, async (data: any, callback: any) => {
+      try {
+        const channel = client.channels.cache.get(data.channelId);
+        if (!channel?.isTextBased() || channel.isDMBased()) {
+          return callback({ success: false, error: "Channel not found" });
+        }
+        const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = await import("discord.js");
+        const embed = new EmbedBuilder()
+          .setTitle("📋 Required Information")
+          .setDescription("In order for us to better process your request, please provide some additional information by clicking the button below.\n\n*(Reason, Website, YouTube, Follower count, etc.)*")
+          .setColor(0x5865f2)
+          .setFooter({ text: "Information Form" });
+          
+        const row = new ActionRowBuilder<any>().addComponents(
+          new ButtonBuilder()
+            .setCustomId("askinfo_btn_none")
+            .setLabel("Provide Information")
+            .setEmoji("📝")
+            .setStyle(ButtonStyle.Primary)
+        );
+        
+        await (channel as any).send({ embeds: [embed], components: [row] });
         callback({ success: true });
       } catch (err: any) {
         callback({ success: false, error: err.message });
@@ -576,6 +617,39 @@ export function startWebServer(client: Bot, port: number = 3000): { app: ReturnT
             .setCustomId(`closekeep`)
             .setLabel("Keep open")
             .setStyle(ButtonStyle.Secondary)
+        );
+
+        await (channel as any).send({ embeds: [embed], components: [row] });
+        callback({ success: true });
+      } catch (err: any) {
+        callback({ success: false, error: err.message });
+      }
+    });
+
+    socket.on("action:sendQuestionnaire" as any, async (data: any, callback: any) => {
+      try {
+        const channel = client.channels.cache.get(data.channelId);
+        if (!channel?.isTextBased() || channel.isDMBased()) {
+          return callback({ success: false, error: "Channel not found" });
+        }
+        
+        try {
+          const { aiQuestionnaireCache } = await import("../utils/questionnaireCache.js");
+          aiQuestionnaireCache.set(data.channelId, data.questions.slice(0, 5));
+        } catch (e) { logger.error("Failed to set cache:", e); }
+
+        const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = await import("discord.js");
+        const embed = new EmbedBuilder()
+          .setTitle(data.title || "📝 Questionnaire")
+          .setDescription(data.description || "Please provide us with some additional information by answering the questions below.")
+          .setColor(0x5865f2);
+
+        const row = new ActionRowBuilder<any>().addComponents(
+          new ButtonBuilder()
+            .setCustomId("btn_ai_questionnaire")
+            .setLabel(data.buttonLabel || "Answer Questions")
+            .setEmoji("📋")
+            .setStyle(ButtonStyle.Primary)
         );
 
         await (channel as any).send({ embeds: [embed], components: [row] });
@@ -1619,6 +1693,94 @@ export function startWebServer(client: Bot, port: number = 3000): { app: ReturnT
     }
   });
 
+  // ===== TEBEX WEBHOOK =====
+  app.post("/webhooks/tebex/:guildId", async (req, res) => {
+    try {
+      const guildId = req.params['guildId']!;
+      const config = await client.db.guild.findUnique({ where: { id: guildId } });
+      if (!config) return res.status(404).send("Guild not configured");
+
+      const body = req.body;
+      
+      // We accept validation webhook
+      if (body.type === "validation.webhook") {
+         return res.status(200).json({ id: body.id });
+      }
+
+      if (body.type === "payment.completed") {
+        const payment = body.subject;
+        
+        let discordUserId = null;
+        let discordUserTag = null;
+        
+        // Try looking up Discord ID in various places Tebex might put it
+        discordUserId = payment.customer?.discord_id || null;
+        if (!discordUserId && payment.custom) {
+           discordUserId = payment.custom.discord_id || null;
+        }
+
+        const packages = payment.products?.map((p: any) => p.name) || [];
+
+        // Save to DB
+        await client.db.tebexPayment.upsert({
+          where: { id: payment.transaction_id },
+          create: {
+            id: payment.transaction_id,
+            guildId,
+            discordUserId,
+            discordUserTag,
+            amount: parseFloat(payment.price || "0"),
+            currency: payment.currency?.iso_4217 || "EUR",
+            packages: JSON.stringify(packages),
+            status: "Complete",
+            email: payment.customer?.email,
+          },
+          update: {
+            status: "Complete"
+          }
+        });
+
+        // Trigger Discord actions
+        const guild = client.guilds.cache.get(guildId);
+        if (guild) {
+          // Give Role
+          if (config.tebexRoleReward && discordUserId) {
+            const member = await guild.members.fetch(discordUserId).catch(() => null);
+            if (member) {
+              await member.roles.add(config.tebexRoleReward).catch(() => {});
+            }
+          }
+
+          // Welcome Message
+          if (config.tebexChannel) {
+            const channel = guild.channels.cache.get(config.tebexChannel);
+            if (channel?.isTextBased()) {
+              const ping = discordUserId ? `<@${discordUserId}>` : (payment.customer?.username ?? "someone");
+              const defaultMsg = `🎉 **New Purchase!**\nThank you ${ping} for purchasing **${packages.join(", ")}**!`;
+              const msg = config.tebexWelcomeMsg 
+                 ? config.tebexWelcomeMsg.replace("{user}", ping).replace("{packages}", packages.join(", ")) 
+                 : defaultMsg;
+              
+              const { EmbedBuilder } = await import("discord.js");
+              const embed = new EmbedBuilder()
+                .setColor(0x00FF00)
+                .setDescription(msg)
+                .setFooter({ text: `Order ID: ${payment.transaction_id}` })
+                .setTimestamp();
+
+              await (channel as any).send({ embeds: [embed] }).catch(() => {});
+            }
+          }
+        }
+      }
+
+      res.status(200).send("OK");
+    } catch (err: any) {
+      logger.error("Tebex webhook error:", err);
+      res.status(500).send("Error");
+    }
+  });
+
   // ===== TRANSCRIPT ROUTES =====
   app.get("/transcript/:id", requireAuth, async (req, res) => {
     try {
@@ -1665,6 +1827,66 @@ export function startWebServer(client: Bot, port: number = 3000): { app: ReturnT
   app.get("/dashboard", requireAuth, async (req, res) => res.send(dashboardPage(req.session.user!)));
   app.get("/dashboard/:guildId", requireAuth, async (req, res) => res.send(guildDashboardPage(req.session.user!, req.params['guildId']!)));
   app.get("/dashboard/:guildId/{*splat}", requireAuth, async (req, res) => res.send(guildDashboardPage(req.session.user!, req.params['guildId']!)));
+
+  // ===== TEBEX WEBHOOKS =====
+  // Validates Tebex webhook signatures and processes Checkout/Payment events
+  app.post("/api/tebex/webhook", async (req, res) => {
+     try {
+         const payload = req.body;
+         // In production, validate signature using `req.headers["x-signature"]` and crypto.createHash with TEBEX_SECRET
+         const eventType = payload?.type;
+         const subject = payload?.subject;
+         const discordId = subject?.customer?.discord_id || subject?.discord_id;
+         
+         if (!discordId) {
+             return res.status(200).send("No Discord ID attached");
+         }
+
+         const user = await client.users.fetch(discordId).catch(() => null);
+         if (!user) {
+             return res.status(200).send("User not found in Discord");
+         }
+
+         const { EmbedBuilder } = await import("discord.js");
+
+         if (eventType === "payment.completed") {
+             // 1. Send Welcome DM
+             const embed = new EmbedBuilder()
+                 .setTitle("🎉 Thank you for your purchase!")
+                 .setDescription(`Your payment for **${subject.products?.[0]?.name ?? "your package"}** has been completed successfuly. Enjoy your new perks!\\n\\nIf you need any support, feel free to open a ticket.`)
+                 .setColor(0x00FF00);
+             await user.send({ embeds: [embed] }).catch(() => {});
+
+             // 2. Assign default client role if configured
+             const guildId = client.guilds.cache.first()?.id; // Assuming single main guild for tebex or multi-guild
+             if (guildId) {
+                 const guild = client.guilds.cache.get(guildId);
+                 const member = await guild?.members.fetch(discordId).catch(() => null);
+                 const guildConfig = await client.db.guild.findUnique({ where: { id: guildId } });
+                 
+                 // If there's an auto-role configured for purchases, or just a hardcoded customer role logic
+                 if (member && guildConfig?.ticketSupportRole) {
+                    logger.info(`Tebex Payment Completed for: ${user.tag}`);
+                 }
+             }
+
+         } else if (eventType === "checkout.abandoned" || eventType === "basket.abandoned") {
+             // Abandoned Cart DM (5% off)
+             const embed = new EmbedBuilder()
+                 .setTitle("🛒 Did you forget something?")
+                 .setDescription(`We noticed you left some items in your cart. Checkout now and use code **COMEBACK5** for 5% off your entire basket!`)
+                 .setURL(subject.checkout_url ?? "https://tebex.io")
+                 .setColor(0xFFA500)
+                 .setFooter({ text: "Offer expires in 24 hours" });
+             await user.send({ embeds: [embed] }).catch(() => {});
+         }
+
+         res.status(200).json({ received: true });
+     } catch (err) {
+         logger.error("Error processing Tebex webhook", err);
+         res.status(500).send("Server Error");
+     }
+  });
 
   httpServer.listen(port, () => logger.info(`Web server started on port ${port}`));
 

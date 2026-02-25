@@ -1,19 +1,35 @@
 import type { ModalComponent } from "../../types/index.js";
 import { TicketService } from "../../services/TicketService.js";
-import { errorMessage, successMessage } from "../../utils/index.js";
+import { errorMessage, successMessage, logger } from "../../utils/index.js";
 
 export default {
   customId: /^ticket_create_modal/,
 
   async execute(interaction, client) {
-    const subject = interaction.fields.getTextInputValue("subject") || undefined;
     const ticketService = new TicketService(client);
 
-    // Extract category from customId if present (ticket_create_modal_Support)
+    // Extract category from customId: ticket_create_modal_Support → "Support"
     const parts = interaction.customId.split("_");
-    const category = parts.length > 3 ? parts.slice(3).join("_") : undefined;
+    const categoryName = parts.length > 3 ? parts.slice(3).join("_") : undefined;
 
     await interaction.deferReply({ ephemeral: true });
+
+    const extraData: Record<string, string> = {};
+    let subject: string | undefined;
+
+    // Collect all fields dynamically — modals are per-category now
+    try {
+      interaction.fields.fields.forEach((fieldObj) => {
+        const field = fieldObj as any;
+        if (field.customId === "subject") {
+          subject = field.value?.trim() || undefined;
+        } else if (field.value?.trim()) {
+          extraData[field.customId] = field.value.trim();
+        }
+      });
+    } catch (e) {
+      logger.error(`[MODAL] Error parsing fields:`, e);
+    }
 
     // Check if user already has an open ticket
     const existingTicket = await client.db.ticket.findFirst({
@@ -36,7 +52,8 @@ export default {
       interaction.guild!,
       interaction.user,
       subject,
-      category
+      categoryName,
+      extraData
     );
 
     if (!channel) {

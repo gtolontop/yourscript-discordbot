@@ -1,11 +1,10 @@
 import {
   ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
   EmbedBuilder,
+  StringSelectMenuBuilder,
 } from "discord.js";
 import type { ModalComponent } from "../../types/index.js";
-import { Colors } from "../../utils/index.js";
+import { Colors, errorMessage } from "../../utils/index.js";
 
 export default {
   customId: "ticket_panel_create",
@@ -13,32 +12,53 @@ export default {
   async execute(interaction, client) {
     const title = interaction.fields.getTextInputValue("panel_title");
     const description = interaction.fields.getTextInputValue("panel_description");
-    const buttonText = interaction.fields.getTextInputValue("panel_button_text");
-    const buttonEmoji = interaction.fields.getTextInputValue("panel_button_emoji") || "🎫";
+
+    // Always fetch categories — panel MUST use dropdown
+    const categories = await client.db.ticketCategory.findMany({
+      where: { guildId: interaction.guildId! },
+      orderBy: { position: "asc" },
+    });
+
+    if (categories.length === 0) {
+      return interaction.reply({
+        ...errorMessage({
+          description:
+            "You need at least one ticket category to create a panel.\nUse `/ticketcategory add` to create one first.",
+        }),
+        ephemeral: true,
+      });
+    }
 
     const embed = new EmbedBuilder()
       .setTitle(`🎫 ${title}`)
       .setDescription(description)
-      .setColor(Colors.Primary);
+      .setColor(Colors.Primary)
+      .setFooter({ text: "Select a category below to open a ticket" });
 
-    const button = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder()
-        .setCustomId("ticket_create")
-        .setLabel(buttonText)
-        .setStyle(ButtonStyle.Primary)
-        .setEmoji(buttonEmoji)
-    );
+    const selectMenu = new StringSelectMenuBuilder()
+      .setCustomId("ticket_category_select")
+      .setPlaceholder("📂 Choose a ticket type...")
+      .addOptions(
+        categories.map((cat) => ({
+          label: cat.name,
+          value: cat.name,
+          ...(cat.description && { description: cat.description }),
+          ...(cat.emoji && { emoji: cat.emoji }),
+        }))
+      );
 
-    // Send panel to channel (classic embed, not Components V2)
-    if (interaction.channel && 'send' in interaction.channel) {
+    const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
+
+    // Send panel to channel
+    if (interaction.channel && "send" in interaction.channel) {
       await interaction.channel.send({
         embeds: [embed],
-        components: [button],
+        components: [row],
       });
     }
 
     await interaction.reply({
-      content: "✅ Ticket panel sent!",
+      content: "✅ Ticket panel sent with dropdown!",
       ephemeral: true,
     });
   },

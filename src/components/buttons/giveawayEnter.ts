@@ -10,7 +10,7 @@ export default {
 
     const giveaway = await client.db.giveaway.findUnique({
       where: { messageId },
-    });
+    }) as any;
 
     if (!giveaway) {
       return interaction.reply({
@@ -33,6 +33,33 @@ export default {
         return interaction.reply({
           ...errorMessage({
             description: `You must have the <@&${giveaway.requiredRole}> role to participate.`,
+          }),
+          ephemeral: true,
+        });
+      }
+    }
+
+    // Check required level
+    if (giveaway.requiredLevel) {
+      const userDb = await client.db.user.findUnique({ where: { id: interaction.user.id } });
+      const userLevel = userDb?.level ?? 0;
+      if (userLevel < giveaway.requiredLevel) {
+        return interaction.reply({
+          ...errorMessage({
+            description: `You need to be at least **Level ${giveaway.requiredLevel}** to enter this giveaway. (You are Level ${userLevel})`,
+          }),
+          ephemeral: true,
+        });
+      }
+    }
+
+    // Check required voice channel
+    if (giveaway.requiredVoice) {
+      const member = interaction.guild?.members.cache.get(interaction.user.id);
+      if (member?.voice.channelId !== giveaway.requiredVoice) {
+        return interaction.reply({
+          ...errorMessage({
+            description: `You must be in the <#${giveaway.requiredVoice}> voice channel to participate!`,
           }),
           ephemeral: true,
         });

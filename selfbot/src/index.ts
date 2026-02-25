@@ -2,8 +2,7 @@ import "dotenv/config";
 import { SelfBotClient } from "./client/SelfBotClient.js";
 import { BotBridge } from "./bridge/BotBridge.js";
 import { OpenRouterProvider } from "./ai/openrouter.js";
-import { BudgetMonitor, type AlertLevel } from "./ai/budget.js";
-import { ModelRouter } from "./ai/router.js";
+import { ModelRouter, type AlertLevel } from "./ai/router.js";
 import { ActionParser } from "./ai/actionParser.js";
 import { TicketHandler } from "./handlers/ticketHandler.js";
 import { DMHandler } from "./handlers/dmHandler.js";
@@ -36,8 +35,8 @@ if (!AI_SECRET) {
 const selfbot = new SelfBotClient();
 const bridge = new BotBridge(BOT_SERVER_URL, AI_SECRET);
 
-// Budget monitor with Discord alert callbacks
-const budget = new BudgetMonitor({
+// Unified model router (routing + budget + rate limiting)
+const router = new ModelRouter({
   dailyLimitUsd: AI_DAILY_BUDGET,
   onAlert: (level: AlertLevel, spend: number, limit: number) => {
     if (!AI_BUDGET_ALERT_CHANNEL) return;
@@ -75,15 +74,14 @@ const budget = new BudgetMonitor({
   },
 });
 
-const ai = new OpenRouterProvider(OPENROUTER_API_KEY, budget);
-const router = new ModelRouter();
+const ai = new OpenRouterProvider(OPENROUTER_API_KEY, router);
 const actionParser = new ActionParser(ai);
 
 // Initialize handlers
 const ticketHandler = new TicketHandler(selfbot, bridge, ai, router, actionParser);
 const dmHandler = new DMHandler(selfbot, bridge, ai, router, actionParser);
 const reviewHandler = new ReviewHandler(bridge);
-const reportService = new ReportService(bridge, budget, ticketHandler, dmHandler);
+const reportService = new ReportService(bridge, router, ticketHandler, dmHandler);
 
 // Register bridge event handlers
 bridge.on("ticket:new", (data) => ticketHandler.handleNewTicket(data));
@@ -124,6 +122,140 @@ bridge.onQuery("query:generateSummary", async (data: any) => {
     sentiment: result.sentiment,
     trend: sentimentData?.trend ?? "stable",
   };
+});
+
+bridge.onQuery("query:generateEmbed", async (data: any) => {
+  try {
+    const prompt = data.prompt;
+    const result = await ai.generateText(
+      "You are a specialized Discord message generator. Based on the user's prompt, create a beautifully formatted message targeting a clean V2 style layout. Respond ONLY with a valid JSON object matching this structure: {\n  \"title\": \"Short catchy title\",\n  \"description\": \"Detailed description, use markdown, emojis, line breaks\",\n  \"color\": \"#ff0000\", // A hex color fitting the theme\n  \"footer\": \"Optional footer text\",\n  \"fields\": [ { \"name\": \"Field Name\", \"value\": \"Field Value\" } ] // Optional array of fields\n}. Do not include any markdown blocks around the JSON.",
+      [{ role: "user", content: prompt }],
+      { temperature: 0.7, maxTokens: 800, taskType: "classification" }
+    );
+    
+    const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return { error: "Failed to parse JSON from AI response." };
+    
+    return { embed: JSON.parse(jsonMatch[0]) };
+  } catch (err: any) {
+    logger.error("Error generating embed:", err);
+    return { error: err.message };
+  }
+});
+
+bridge.onQuery("query:modifyEmbed", async (data: any) => {
+  try {
+    const { prompt, currentEmbedData } = data;
+    const result = await ai.generateText(
+      "You are a specialized Discord message generator. You are given a user's instruction to modify an existing JSON embed configuration. Respond ONLY with a FULL valid JSON object incorporating the changes, matching this structure: {\n  \"title\": \"Short catchy title\",\n  \"description\": \"Detailed description, use markdown, emojis, line breaks\",\n  \"color\": \"#ff0000\", // A hex color fitting the theme\n  \"footer\": \"Optional footer text\",\n  \"fields\": [ { \"name\": \"Field Name\", \"value\": \"Field Value\" } ] // Optional array of fields\n}. You MUST provide the full JSON, not just the diff. Do not include any markdown blocks around the JSON.",
+      [
+        { role: "model", content: JSON.stringify(currentEmbedData) },
+        { role: "user", content: prompt }
+      ],
+      { temperature: 0.7, maxTokens: 800, taskType: "classification" }
+    );
+    
+    const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return { error: "Failed to parse JSON from AI response." };
+    
+    return { embed: JSON.parse(jsonMatch[0]) };
+  } catch (err: any) {
+    logger.error("Error modifying embed:", err);
+    return { error: err.message };
+  }
+});
+
+bridge.onQuery("query:generateMoraleReport", async (data: any) => {
+  try {
+    const ticketData = data.data;
+    if (!ticketData) return { text: "No tickets were closed yesterday." };
+
+    const result = await ai.generateText(
+      "You are analyzing a day of customer support tickets for a FiveM server. Based on the provided summary of yesterday's tickets, write a short, sharp paragraph (3-4 sentences) summarizing the 'Server Morale' for the staff team. Mention trends, overall sentiment (e.g. 80% positive), and highlight any recurring frustrations or bugs. Be concise and professional.",
+      [{ role: "user", content: ticketData }],
+      { temperature: 0.3, maxTokens: 200, taskType: "classification" } 
+    );
+    
+    return { text: result.text.trim() };
+  } catch (err: any) {
+    logger.error("Error generating morale report:", err);
+    return { error: err.message };
+  }
+});
+
+bridge.onQuery("query:generateWeeklyFAQ", async (data: any) => {
+  try {
+    const ticketData = data.data;
+    if (!ticketData) return { text: "No tickets to analyze." };
+
+    const result = await ai.generateText(
+      "You are analyzing a week of customer support tickets. Based on these summaries, generate 3 clear Question & Answer pairs that should be added to the server's public FAQ to prevent future tickets. Format them clearly with Q: and A:. Focus on the most common or easily resolvable issues mentioned.",
+      [{ role: "user", content: ticketData }],
+      { temperature: 0.4, maxTokens: 400, taskType: "classification" } 
+    );
+    
+    return { text: result.text.trim() };
+  } catch (err: any) {
+    logger.error("Error generating weekly FAQ:", err);
+    return { error: err.message };
+  }
+});
+
+bridge.onQuery("query:generateHandover", async (data: any) => {
+  try {
+    const ticketData = data.data;
+    if (!ticketData) return { text: "No tickets to analyze." };
+
+    const result = await ai.generateText(
+      "You are an assistant for a FiveM support team. A staff member is logging off and requested a 'Shift Handover' summary. Based on the provided list of currently active tickets, write a concise, organized summary so the next shift knows what needs attention. Use markdown lists and bullet points.",
+      [{ role: "user", content: ticketData }],
+      { temperature: 0.3, maxTokens: 400, taskType: "classification" } 
+    );
+    
+    return { text: result.text.trim() };
+  } catch (err: any) {
+    logger.error("Error generating handover:", err);
+    return { error: err.message };
+  }
+});
+
+bridge.onQuery("query:generateStaffReport", async (data: any) => {
+  try {
+    const ticketData = data.data;
+    if (!ticketData) return { text: "No closed tickets to analyze." };
+
+    const result = await ai.generateText(
+      "You are an AI generating a monthly staff performance report for a FiveM server. Based on this list of closed tickets (ClaimedBy, Rating, Sentiment), write a short performance summary (3-4 paragraphs) highlighting which staff members did well, who resolved the most, and general satisfaction. Keep it professional and constructive.",
+      [{ role: "user", content: ticketData }],
+      { temperature: 0.3, maxTokens: 500, taskType: "classification" } 
+    );
+    
+    return { text: result.text.trim() };
+  } catch (err: any) {
+    logger.error("Error generating staff report:", err);
+    return { error: err.message };
+  }
+});
+
+bridge.onQuery("query:generateLearning", async (data: any) => {
+  try {
+    const rawText = data.text;
+    if (!rawText) return { error: "No text provided." };
+
+    const result = await ai.generateText(
+      "You are a Knowledge Base formatter for an AI assistant. The user will provide raw text facts, rules, or product info. You must strictly output JSON matching exactly this object: {\"category\": \"business\" | \"glossary\" | \"instructions\" | \"faq\" | \"product\", \"key\": \"short_unique_key\", \"value\": \"Cleaned and formatted content to add to the permanent system prompt.\"}. Respond ONLY with valid JSON and NO markdown blocks.",
+      [{ role: "user", content: rawText }],
+      { temperature: 0.1, maxTokens: 400, taskType: "classification" } 
+    );
+    
+    const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return { error: "Failed to parse JSON from AI response." };
+    
+    return { data: JSON.parse(jsonMatch[0]) };
+  } catch (err: any) {
+    logger.error("Error generating learning info:", err);
+    return { error: err.message };
+  }
 });
 
 // Start everything

@@ -1,5 +1,5 @@
 import type { BotBridge } from "../bridge/BotBridge.js";
-import type { BudgetMonitor } from "../ai/budget.js";
+import type { ModelRouter } from "../ai/router.js";
 import type { TicketHandler } from "../handlers/ticketHandler.js";
 import type { DMHandler } from "../handlers/dmHandler.js";
 import { logger } from "../utils/logger.js";
@@ -13,7 +13,7 @@ export class ReportService {
 
   constructor(
     private bridge: BotBridge,
-    private budget: BudgetMonitor,
+    private budget: ModelRouter,
     private ticketHandler: TicketHandler,
     private dmHandler?: DMHandler
   ) {
